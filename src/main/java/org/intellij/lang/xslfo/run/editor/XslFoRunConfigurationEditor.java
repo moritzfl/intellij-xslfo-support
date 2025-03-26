@@ -4,7 +4,6 @@ import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectRootManager;
@@ -75,7 +74,7 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     }
 
     @Override
-    protected void applyEditorTo(XslFoRunConfiguration s) throws ConfigurationException {
+    protected void applyEditorTo(XslFoRunConfiguration s) {
         s.setXsltFile(myXsltFile.getText());
         s.setXmlInputFile(myXmlInputFile.getXmlInputFile());
         s.setOutputFile(myOutputFile.getText());

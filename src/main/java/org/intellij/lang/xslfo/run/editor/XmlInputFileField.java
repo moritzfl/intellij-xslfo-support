@@ -70,7 +70,7 @@ public class XmlInputFileField extends ComponentWithBrowseButton<JComboBox<Strin
                 final String text = myXsltFileField.getText();
                 final JComboBox<String> comboBox = XmlInputFileField.this.getChildComponent();
                 final Object oldXml = getXmlInputFile();
-                if (text.length() != 0) {
+                if (!text.isEmpty()) {
                     final ComboBoxModel<String> model = comboBox.getModel();
 
                     boolean found = false;

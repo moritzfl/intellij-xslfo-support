@@ -168,7 +168,7 @@ public final class XslFoRunConfiguration extends LocatableConfigurationBase
     }
 
     public void setXsltFile(@NotNull String xsltFile) {
-        if (StringUtils.isEmpty(xsltFile)) {
+        if (xsltFile.isEmpty()) {
             myXsltFile = null;
         } else {
             myXsltFile =
@@ -192,7 +192,7 @@ public final class XslFoRunConfiguration extends LocatableConfigurationBase
     }
 
     public void setXmlInputFile(@NotNull String xmlInputFile) {
-        if (StringUtils.isEmpty(xmlInputFile)) {
+        if (xmlInputFile.isEmpty()) {
             myXmlInputFile = null;
         } else {
             myXmlInputFile =

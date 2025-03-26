@@ -23,7 +23,7 @@ class ProjectDefaultAccessor implements TextComponentAccessor<JTextField> {
     public String getText(JTextField component) {
         final String text = component.getText();
         final VirtualFile baseDir = ProjectUtil.guessProjectDir(project);
-        return text.length() > 0 ? text : (baseDir != null ? baseDir.getPresentableUrl() : "");
+        return !text.isEmpty() ? text : (baseDir != null ? baseDir.getPresentableUrl() : "");
     }
 
     public void setText(JTextField component, @NotNull String text) {

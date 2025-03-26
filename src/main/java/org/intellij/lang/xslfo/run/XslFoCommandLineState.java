@@ -116,13 +116,13 @@ public class XslFoCommandLineState extends CommandLineState {
         }
 
         // XML
-        if (StringUtils.isEmpty(myXslFoRunConfiguration.getXmlInputFile())) {
+        if (myXslFoRunConfiguration.getXmlInputFile() == null || myXslFoRunConfiguration.getXmlInputFile().isEmpty()) {
             throw new CantRunException("No XML input file selected");
         }
         commandLine.addParameters("-xml", myXslFoRunConfiguration.getXmlInputFile());
 
         // XSL
-        if (StringUtils.isEmpty(myXslFoRunConfiguration.getXsltFile())) {
+        if (myXslFoRunConfiguration.getXsltFile() == null || myXslFoRunConfiguration.getXsltFile().isEmpty()) {
             throw new CantRunException("No XSLT file selected");
         }
         commandLine.addParameters("-xsl", myXslFoRunConfiguration.getXsltFile());

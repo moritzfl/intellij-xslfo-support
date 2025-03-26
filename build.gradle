@@ -1,7 +1,7 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
-    id 'org.jetbrains.intellij' version '0.7.3'
+    id 'org.jetbrains.intellij' version '1.17.4'
 }
 
 repositories {
@@ -9,16 +9,14 @@ repositories {
 }
 
 apply plugin: 'java'
-sourceCompatibility = javaVersion
-targetCompatibility = javaVersion
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:deprecation"
 }
 
 // take the version number defined in 'gradle.properties' and use that in plugin.xml
-task initConfig(type: Copy) {
+tasks.register('initConfig', Copy) {
     from('src/main/resources') {
         include '**/plugin.xml'
         filter(ReplaceTokens, tokens: [version: version])
@@ -35,14 +33,14 @@ idea {
 
 apply plugin: 'org.jetbrains.intellij'
 intellij {
-    pluginName 'intellij-xslfo-support'
-    version ideaVersion
-    updateSinceUntilBuild false
-    plugins 'xpath' // the XPathView plugin is in a directory simply named xpath in Intellij IC and IU
+    pluginName = 'intellij-xslfo-support'
+    version = ideaVersion
+    updateSinceUntilBuild = false
+    plugins = ['XPathView:243.22562.13'] // Der XPathView-Plugin-Name muss in einem Array angegeben werden.
 
     // SET YOUR JETBRAINS LOGIN DETAILS AS ENVIRONMENT VARIABLES SO THAT YOU CAN PUBLISH A NEW BUILD TO THE REPOSITORY
     publishPlugin {
-        token System.getenv('MARKETPLACE_TOKEN')
+        token = System.getenv('MARKETPLACE_TOKEN')
     }
 }
 
