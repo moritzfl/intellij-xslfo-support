@@ -115,8 +115,19 @@ class BundledFopCommandLineState extends CommandLineState {
 
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(outFile))) {
             Fop fop = fopFactory.newFop(MimeConstants.MIME_PDF, foUserAgent, out);
+
+            // Ensure we use a reliable XSLT provider (Xalan) to avoid JAXP ambiguity on modern JDKs
+            String tfProperty = System.getProperty("javax.xml.transform.TransformerFactory");
+            if (tfProperty == null || tfProperty.isEmpty()) {
+                System.setProperty("javax.xml.transform.TransformerFactory", "org.apache.xalan.processor.TransformerFactoryImpl");
+            }
+
             TransformerFactory factory = TransformerFactory.newInstance();
             Transformer transformer = factory.newTransformer(new StreamSource(new File(xslPath)));
+            if (transformer == null) {
+                throw new TransformerException("Failed to create XSLT Transformer. Ensure Xalan is on the classpath and configured.");
+            }
+
             Source src = new StreamSource(new File(xmlPath));
             Result res = new SAXResult(fop.getDefaultHandler());
             transformer.transform(src, res);

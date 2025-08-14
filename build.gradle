@@ -38,6 +38,8 @@ dependencies {
         instrumentationTools()
     }
     implementation 'org.apache.xmlgraphics:fop:2.11'
+    implementation 'xalan:xalan:2.7.3'
+    implementation 'xalan:serializer:2.7.3'
 }
 
 version = "${version}"
