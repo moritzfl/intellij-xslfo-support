@@ -2,7 +2,14 @@ package org.intellij.lang.xslfo.run;
 
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
-import com.intellij.execution.configurations.*;
+import com.intellij.execution.configurations.ConfigurationFactory;
+import com.intellij.execution.configurations.LocatableConfigurationBase;
+import com.intellij.execution.configurations.RunConfiguration;
+import com.intellij.execution.configurations.RunConfigurationWithSuppressedDefaultDebugAction;
+import com.intellij.execution.configurations.RunProfileState;
+import com.intellij.execution.configurations.RunProfileWithCompileBeforeLaunchOption;
+import com.intellij.execution.configurations.RuntimeConfigurationError;
+import com.intellij.execution.configurations.RuntimeConfigurationException;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
@@ -14,12 +21,8 @@ import com.intellij.openapi.vfs.pointers.VirtualFilePointer;
 import com.intellij.openapi.vfs.pointers.VirtualFilePointerManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.xml.XmlFile;
-
-import org.apache.commons.lang.StringUtils;
 import org.intellij.lang.xpath.xslt.XsltSupport;
 import org.intellij.lang.xpath.xslt.associations.FileAssociationsManager;
-import org.intellij.lang.xslfo.XslFoSettings;
-import org.intellij.lang.xslfo.XslFoUtils;
 import org.intellij.lang.xslfo.run.editor.XslFoRunConfigurationEditor;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
@@ -57,8 +60,13 @@ public final class XslFoRunConfiguration extends LocatableConfigurationBase
 
     @Override
     public void checkConfiguration() throws RuntimeConfigurationException {
-        if (XslFoUtils.findFopExecutable(XslFoSettings.getInstance().getFopInstallationDir()) == null) {
-            throw new RuntimeConfigurationError("FOP executable not found. Please edit settings (Settings -> Languages & Frameworks -> XSL-FO)");
+        // Allow running with bundled FOP libraries even if external executable is not configured.
+        // Keep basic validation of input selections; detailed checks happen at execution time.
+        if (getXsltFile() == null || getXsltFile().isEmpty()) {
+            throw new RuntimeConfigurationError("No XSLT file selected");
+        }
+        if (getXmlInputFile() == null || getXmlInputFile().isEmpty()) {
+            throw new RuntimeConfigurationError("No XML input file selected");
         }
     }
 

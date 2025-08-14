@@ -69,11 +69,14 @@ public class XslFoSettingsPanel {
     }
 
     private String validateSettings() {
-        if (XslFoUtils.findFopExecutable(myFopInstallationDir.getText()) == null) {
-            return "<html><body><b>Error: </b>Selected FOP installation directory is invalid</body></html>";
-        } else {
-            return "";
+        String dir = myFopInstallationDir.getText();
+        if (dir != null && !dir.isEmpty()) {
+            if (XslFoUtils.findFopExecutable(dir) == null) {
+                return "<html><body><b>Error: </b>Selected FOP installation directory is invalid</body></html>";
+            }
         }
+        // No error if path is empty: the bundled FOP libraries will be used.
+        return "";
     }
 
     private class MySettingsPanelChangeListener implements ComponentListener, DocumentListener {
