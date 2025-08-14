@@ -15,17 +15,14 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
-
-import org.apache.commons.lang.StringUtils;
 import org.intellij.lang.xslfo.XslFoSettings;
 import org.intellij.lang.xslfo.XslFoUtils;
 import org.jetbrains.annotations.NotNull;
 
+import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-
-import javax.swing.*;
 
 /**
  * @author Dmitry_Cherkas

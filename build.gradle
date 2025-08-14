@@ -1,14 +1,15 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
-    id 'org.jetbrains.intellij' version '1.17.4'
+    id 'org.jetbrains.intellij.platform' version '2.7.1'
+    id 'java'
+    id 'idea'
 }
 
 repositories {
     mavenCentral()
+    intellijPlatform.defaultRepositories()
 }
-
-apply plugin: 'java'
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -23,7 +24,6 @@ tasks.register('initConfig', Copy) {
     }
 }
 
-apply plugin: 'idea'
 idea {
     project {
         jdkName = javaVersion
@@ -31,16 +31,9 @@ idea {
     }
 }
 
-apply plugin: 'org.jetbrains.intellij'
-intellij {
-    pluginName = 'intellij-xslfo-support'
-    version = ideaVersion
-    updateSinceUntilBuild = false
-    plugins = ['XPathView:243.22562.13'] // Der XPathView-Plugin-Name muss in einem Array angegeben werden.
-
-    // SET YOUR JETBRAINS LOGIN DETAILS AS ENVIRONMENT VARIABLES SO THAT YOU CAN PUBLISH A NEW BUILD TO THE REPOSITORY
-    publishPlugin {
-        token = System.getenv('MARKETPLACE_TOKEN')
+dependencies {
+    intellijPlatform {
+        plugins('XPathView:243.22562.13')
     }
 }
 
