@@ -11,6 +11,29 @@ repositories {
     intellijPlatform.defaultRepositories()
 }
 
+// Avoid bundling legacy javax.xml.* implementations inside the plugin (causes classloader split)
+configurations.configureEach {
+    exclude group: 'xml-apis', module: 'xml-apis'
+    exclude group: 'xalan', module: 'xalan'
+    exclude group: 'xalan', module: 'serializer'
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'xerces:xercesImpl:2.12.2'
+    }
+}
+
+def targetJava = (project.findProperty('javaVersion')) as String
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(targetJava)
+    targetCompatibility = JavaVersion.toVersion(targetJava)
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJava.toInteger())
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:deprecation"
@@ -24,13 +47,6 @@ tasks.register('initConfig', Copy) {
     }
 }
 
-idea {
-    project {
-        jdkName = javaVersion
-        languageLevel = javaVersion
-    }
-}
-
 dependencies {
     intellijPlatform {
         intellijIdeaCommunity(ideaVersion)
@@ -38,8 +54,8 @@ dependencies {
         instrumentationTools()
     }
     implementation 'org.apache.xmlgraphics:fop:2.11'
-    implementation 'xalan:xalan:2.7.3'
-    implementation 'xalan:serializer:2.7.3'
+    // Provide public JAXP factories to avoid java.xml internal access under IntelliJ plugin classloader
+    implementation 'xerces:xercesImpl:2.12.2'
 }
 
 version = "${version}"

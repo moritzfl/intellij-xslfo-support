@@ -20,7 +20,6 @@ import org.apache.fop.apps.*;
 import org.xml.sax.SAXException;
 
 import javax.xml.transform.Result;
-import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
@@ -51,7 +50,7 @@ class BundledFopCommandLineState extends CommandLineState {
 
     @NotNull
     @Override
-    protected ProcessHandler startProcess() throws ExecutionException {
+    protected ProcessHandler startProcess() {
         InProcessFopProcessHandler handler = new InProcessFopProcessHandler();
         // Run transformation on a background thread to avoid blocking UI
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -89,6 +88,20 @@ class BundledFopCommandLineState extends CommandLineState {
     }
 
     private void runFop() throws IOException, SAXException, TransformerException {
+        // Ensure JAXP factories resolve to public Xerces implementations to avoid
+        // java.xml internal access restrictions in the IntelliJ plugin classloader.
+        try {
+            // Clear any stale overrides first
+            System.clearProperty("javax.xml.parsers.SAXParserFactory");
+            System.clearProperty("javax.xml.parsers.DocumentBuilderFactory");
+            System.clearProperty("org.xml.sax.driver");
+            // Set to public Xerces implementations (provided by xercesImpl dependency)
+            System.setProperty("javax.xml.parsers.SAXParserFactory", "org.apache.xerces.jaxp.SAXParserFactoryImpl");
+            System.setProperty("javax.xml.parsers.DocumentBuilderFactory", "org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
+        } catch (SecurityException ignored) {
+            // If properties cannot be set, proceed; FOP/Batik may still use defaults.
+        }
+
         String xmlPath = config.getXmlInputFile();
         String xslPath = config.getXsltFile();
         if (xmlPath == null || xmlPath.isEmpty()) throw new IOException("No XML input file selected");
@@ -116,21 +129,19 @@ class BundledFopCommandLineState extends CommandLineState {
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(outFile))) {
             Fop fop = fopFactory.newFop(MimeConstants.MIME_PDF, foUserAgent, out);
 
-            // Ensure we use a reliable XSLT provider (Xalan) to avoid JAXP ambiguity on modern JDKs
-            String tfProperty = System.getProperty("javax.xml.transform.TransformerFactory");
-            if (tfProperty == null || tfProperty.isEmpty()) {
-                System.setProperty("javax.xml.transform.TransformerFactory", "org.apache.xalan.processor.TransformerFactoryImpl");
-            }
-
             TransformerFactory factory = TransformerFactory.newInstance();
-            Transformer transformer = factory.newTransformer(new StreamSource(new File(xslPath)));
-            if (transformer == null) {
-                throw new TransformerException("Failed to create XSLT Transformer. Ensure Xalan is on the classpath and configured.");
-            }
 
-            Source src = new StreamSource(new File(xmlPath));
+            File xsltFile = new File(xslPath);
+            StreamSource xsltSource = new StreamSource(xsltFile);
+            xsltSource.setSystemId(xsltFile.toURI().toString());
+            Transformer transformer = factory.newTransformer(xsltSource);
+
+            File xmlFile = new File(xmlPath);
+            StreamSource xmlSource = new StreamSource(xmlFile);
+            xmlSource.setSystemId(xmlFile.toURI().toString());
+
             Result res = new SAXResult(fop.getDefaultHandler());
-            transformer.transform(src, res);
+            transformer.transform(xmlSource, res);
         }
     }
 
