@@ -23,12 +23,20 @@ public class XslFoSettingsPanel {
     private JSeparator mySeparator;
 
     public XslFoSettingsPanel() {
-        myFopInstallationDir.addBrowseFolderListener("Choose FOP Installation Directory",
-                "FOP installation directory should contain fop shell scripts (fop.bat,fop.cmd, etc).",
-                null, FileChooserDescriptorFactory.createSingleFolderDescriptor());
+        // Replace deprecated addBrowseFolderListener with explicit chooser actions
+        myFopInstallationDir.addActionListener(e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(
+                FileChooserDescriptorFactory.createSingleFolderDescriptor(), null, null, file -> {
+                    if (file != null) {
+                        myFopInstallationDir.setText(file.getPath().replace('/', java.io.File.separatorChar));
+                    }
+                }));
 
-        myUserConfigLocation.addBrowseFolderListener("Choose User Configuration File", "Optional userconfig.xml file may be selected.",
-                null, FileChooserDescriptorFactory.createSingleFileDescriptor(XmlFileType.INSTANCE));
+        myUserConfigLocation.addActionListener(e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(
+                FileChooserDescriptorFactory.createSingleFileDescriptor(XmlFileType.INSTANCE), null, null, file -> {
+                    if (file != null) {
+                        myUserConfigLocation.setText(file.getPath().replace('/', java.io.File.separatorChar));
+                    }
+                }));
 
         // configure Settings Validation
         myWarningLabel.setIcon(AllIcons.General.BalloonError);

@@ -1,9 +1,10 @@
 package org.intellij.lang.xslfo.run.editor;
 
+import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComponentWithBrowseButton;
-import com.intellij.openapi.ui.TextComponentAccessor;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
@@ -12,7 +13,6 @@ import com.intellij.psi.PsiManager;
 import com.intellij.ui.DocumentAdapter;
 import com.intellij.util.ArrayUtil;
 import org.intellij.lang.xpath.xslt.associations.FileAssociationsManager;
-import org.intellij.lang.xpath.xslt.associations.impl.AnyXMLDescriptor;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -24,7 +24,7 @@ import java.io.File;
  */
 public class XmlInputFileField extends ComponentWithBrowseButton<JComboBox<String>> {
 
-    private final AnyXMLDescriptor myXmlDescriptor;
+    private final FileChooserDescriptor myXmlDescriptor;
     private final ProjectDefaultAccessor myProjectDefaultAccessor;
 
     private final XsltFileField myXsltFileField;
@@ -38,27 +38,28 @@ public class XmlInputFileField extends ComponentWithBrowseButton<JComboBox<Strin
 
         myXsltFileField = xsltFileField;
         myProjectDefaultAccessor = new ProjectDefaultAccessor(project);
-        myXmlDescriptor = new AnyXMLDescriptor(false);
+        myXmlDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor(XmlFileType.INSTANCE);
 
-        this.addBrowseFolderListener("Choose XML File", null, project, myXmlDescriptor, new TextComponentAccessor<>() {
-            public String getText(JComboBox comboBox) {
-                Object item = comboBox.getEditor().getItem();
-                if (item.toString().length() == 0) {
-                    final String text = myProjectDefaultAccessor.getText(myXsltFileField.getChildComponent());
-                    final VirtualFile file =
-                        VirtualFileManager.getInstance().findFileByUrl(VfsUtil.pathToUrl(text.replace(File.separatorChar, '/')));
-                    if (file != null && !file.isDirectory()) {
-                        final VirtualFile parent = file.getParent();
-                        assert parent != null;
-                        return parent.getPresentableUrl();
-                    }
+        // Use non-deprecated direct FileChooser invocation instead of deprecated addBrowseFolderListener/BrowseFolderActionListener
+        this.addActionListener(e -> {
+            // Determine initial selection directory
+            Object item = getChildComponent().getEditor().getItem();
+            String initialText = item != null ? item.toString() : "";
+            if (initialText.isEmpty()) {
+                initialText = myProjectDefaultAccessor.getText(myXsltFileField.getChildComponent());
+            }
+            VirtualFile initial = null;
+            if (initialText != null && !initialText.isEmpty()) {
+                initial = VirtualFileManager.getInstance().findFileByUrl(VfsUtil.pathToUrl(initialText.replace(File.separatorChar, '/')));
+                if (initial != null && !initial.isDirectory()) {
+                    initial = initial.getParent();
                 }
-                return item.toString();
             }
-
-            public void setText(JComboBox comboBox, @NotNull String text) {
-                comboBox.getEditor().setItem(text);
-            }
+            com.intellij.openapi.fileChooser.FileChooser.chooseFile(myXmlDescriptor, project, initial, file -> {
+                if (file != null) {
+                    getChildComponent().getEditor().setItem(file.getPath().replace('/', File.separatorChar));
+                }
+            });
         });
 
         myXsltFileField.getTextField().getDocument().addDocumentListener(new DocumentAdapter() {

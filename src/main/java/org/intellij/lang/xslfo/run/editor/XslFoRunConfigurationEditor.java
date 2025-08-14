@@ -35,8 +35,13 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     public XslFoRunConfigurationEditor(Project project) {
         this.myProject = project;
 
-        myOutputFile.addBrowseFolderListener("Choose Output File", "The selected file will be overwritten during execution.",
-                                             myProject, FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor());
+        // Replace deprecated addBrowseFolderListener with explicit chooser action
+        FileChooserDescriptor descriptor = FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor();
+        myOutputFile.addActionListener(e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, myProject, null, file -> {
+            if (file != null) {
+                myOutputFile.setText(file.getPath().replace('/', java.io.File.separatorChar));
+            }
+        }));
         myUseTemporaryFiles.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
