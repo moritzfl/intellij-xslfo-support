@@ -33,7 +33,9 @@ idea {
 
 dependencies {
     intellijPlatform {
+        intellijIdeaCommunity(ideaVersion)
         plugins('XPathView:243.22562.13')
+        instrumentationTools()
     }
 }
 
