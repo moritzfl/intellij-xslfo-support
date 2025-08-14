@@ -37,6 +37,7 @@ dependencies {
         plugins('XPathView:243.22562.13')
         instrumentationTools()
     }
+    implementation 'org.apache.xmlgraphics:fop:2.11'
 }
 
 version = "${version}"

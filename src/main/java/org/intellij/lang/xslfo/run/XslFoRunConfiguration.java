@@ -33,7 +33,7 @@ import java.io.File;
 /**
  * @author Dmitry_Cherkas
  */
-public final class XslFoRunConfiguration extends LocatableConfigurationBase
+public abstract class XslFoRunConfiguration extends LocatableConfigurationBase
     implements RunConfigurationWithSuppressedDefaultDebugAction, RunProfileWithCompileBeforeLaunchOption {
 
     private static final String NAME = "XSL-FO Configuration";
@@ -83,11 +83,11 @@ public final class XslFoRunConfiguration extends LocatableConfigurationBase
         if (baseFile == null) {
             throw new ExecutionException("No XSLT file selected");
         }
-
-        // TODO add filters (see org.intellij.lang.xpath.xslt.run.XsltRunConfiguration.getState)
-
-        return new XslFoCommandLineState(this, environment);
+        return createState(environment);
     }
+
+    @NotNull
+    protected abstract RunProfileState createState(@NotNull ExecutionEnvironment environment) throws ExecutionException;
 
     @Override
     public String suggestedName() {

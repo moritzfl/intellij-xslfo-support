@@ -27,13 +27,13 @@ import java.nio.charset.Charset;
 /**
  * @author Dmitry_Cherkas
  */
-public class XslFoCommandLineState extends CommandLineState {
+public class BinaryXslFoCommandLineState extends CommandLineState {
 
     private final XslFoSettings mySettings = XslFoSettings.getInstance();
     private final XslFoRunConfiguration myXslFoRunConfiguration;
     private final File temporaryFile;
 
-    public XslFoCommandLineState(XslFoRunConfiguration xslFoRunConfiguration, ExecutionEnvironment environment) {
+    public BinaryXslFoCommandLineState(XslFoRunConfiguration xslFoRunConfiguration, ExecutionEnvironment environment) {
         super(environment);
 
         this.myXslFoRunConfiguration = xslFoRunConfiguration;
@@ -51,6 +51,12 @@ public class XslFoCommandLineState extends CommandLineState {
     @NotNull
     @Override
     protected ProcessHandler startProcess() throws ExecutionException {
+        // Fallback: if no external FOP executable is configured or found, run using bundled FOP instead of failing.
+        VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(mySettings.getFopInstallationDir());
+        if (fopExecutablePath == null) {
+            return new BundledFopCommandLineState(myXslFoRunConfiguration, getEnvironment()).startProcess();
+        }
+
         final GeneralCommandLine commandLine = buildCommandLine();
 
         final OSProcessHandler processHandler = new OSProcessHandler(commandLine.createProcess(), commandLine.getCommandLineString()) {

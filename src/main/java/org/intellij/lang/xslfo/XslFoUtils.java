@@ -32,7 +32,7 @@ public class XslFoUtils {
     }
 
     public static VirtualFile findFopUserConfig(String userConfigLocation) {
-        if(userConfigLocation.isEmpty()) {
+        if(userConfigLocation == null || userConfigLocation.isEmpty()) {
             return null;
         }
         String url = VfsUtilCore.pathToUrl(userConfigLocation).replace(File.separatorChar, '/');
