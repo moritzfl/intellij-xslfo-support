@@ -33,21 +33,14 @@ import java.io.File;
 /**
  * @author Dmitry_Cherkas
  */
-public abstract class XslFoRunConfiguration extends LocatableConfigurationBase
+public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSettings>
     implements RunConfigurationWithSuppressedDefaultDebugAction, RunProfileWithCompileBeforeLaunchOption {
 
     private static final String NAME = "XSL-FO Configuration";
 
     private String mySuggestedName;
 
-    private String myOutputFile;
-    private boolean myOpenOutputFile;
-    private boolean useTemporaryFiles;
-
-    @Nullable
-    private VirtualFilePointer myXsltFile = null;
-    @Nullable
-    private VirtualFilePointer myXmlInputFile = null;
+    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false);
 
     public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
         super(project, factory, NAME);
@@ -113,145 +106,167 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase
     }
 
     @Override
-    @SuppressWarnings({"unchecked"})
-    public void readExternal(Element element) throws InvalidDataException {
+    public void readExternal(@NotNull Element element) throws InvalidDataException {
         super.readExternal(element);
+
+        VirtualFilePointer xslt = null;
+        VirtualFilePointer xml = null;
+        String outPath = null;
+        boolean openOut = false;
+        boolean useTemp = false;
 
         Element e = element.getChild("XsltFile");
         if (e != null) {
             final String url = e.getAttributeValue("url");
             if (url != null) {
-                myXsltFile = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
+                xslt = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
             }
         }
         e = element.getChild("XmlFile");
         if (e != null) {
             final String url = e.getAttributeValue("url");
             if (url != null) {
-                myXmlInputFile = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
+                xml = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
             }
         }
 
         e = element.getChild("OutputFile");
         if (e != null) {
-            myOutputFile = e.getAttributeValue("path");
-            myOpenOutputFile = Boolean.valueOf(e.getAttributeValue("openOutputFile"));
+            outPath = e.getAttributeValue("path");
+            openOut = Boolean.parseBoolean(e.getAttributeValue("openOutputFile"));
         }
-        useTemporaryFiles = Boolean.parseBoolean(element.getAttributeValue("useTemporaryFiles"));
+        String useTempAttr = element.getAttributeValue("useTemporaryFiles");
+        if (useTempAttr != null) {
+            useTemp = Boolean.parseBoolean(useTempAttr);
+        }
+        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp);
     }
 
     @Override
-    public void writeExternal(Element element) throws WriteExternalException {
+    public void writeExternal(@NotNull Element element) throws WriteExternalException {
         super.writeExternal(element);
 
         Element e = new Element("XsltFile");
-        if (myXsltFile != null) {
-            e.setAttribute("url", myXsltFile.getUrl());
+        if (settings.getXsltFilePointer() != null) {
+            e.setAttribute("url", settings.getXsltFilePointer().getUrl());
             element.addContent(e);
         }
         e = new Element("XmlFile");
-        if (myXmlInputFile != null) {
-            e.setAttribute("url", myXmlInputFile.getUrl());
+        if (settings.getXmlInputFilePointer() != null) {
+            e.setAttribute("url", settings.getXmlInputFilePointer().getUrl());
             element.addContent(e);
         }
         e = new Element("OutputFile");
-        if (myOutputFile != null) {
-            e.setAttribute("path", myOutputFile);
-            e.setAttribute("openOutputFile", Boolean.toString(myOpenOutputFile));
+        if (settings.getOutputFile() != null) {
+            e.setAttribute("path", settings.getOutputFile());
+            e.setAttribute("openOutputFile", Boolean.toString(settings.isOpenOutputFile()));
             element.addContent(e);
         }
-        element.setAttribute("useTemporaryFiles", Boolean.toString(useTemporaryFiles));
+        element.setAttribute("useTemporaryFiles", Boolean.toString(settings.isUseTemporaryFiles()));
     }
 
     @Override
     public RunConfiguration clone() {
         final XslFoRunConfiguration configuration = (XslFoRunConfiguration) super.clone();
-        if (myXsltFile != null) {
-            configuration.myXsltFile = VirtualFilePointerManager.getInstance().duplicate(myXsltFile, getProject(), null);
-        }
-        if (myXmlInputFile != null) {
-            configuration.myXmlInputFile = VirtualFilePointerManager.getInstance().duplicate(myXmlInputFile, getProject(), null);
-        }
+        // Use XslFoRunSettings.clone() to create a copy of settings
+        configuration.settings = this.settings.clone();
         return configuration;
     }
 
     public void setXsltFile(@NotNull String xsltFile) {
         if (xsltFile.isEmpty()) {
-            myXsltFile = null;
+            settings = settings.withXsltFile(null);
         } else {
-            myXsltFile =
-                    VirtualFilePointerManager.getInstance()
-                            .create(VfsUtilCore.pathToUrl(xsltFile).replace(File.separatorChar, '/'), getProject(), null);
+            VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
+                .create(VfsUtilCore.pathToUrl(xsltFile).replace(File.separatorChar, '/'), getProject(), null);
+            settings = settings.withXsltFile(ptr);
         }
     }
 
     public void setXsltFile(VirtualFile virtualFile) {
-        myXsltFile = VirtualFilePointerManager.getInstance().create(virtualFile, getProject(), null);
+        VirtualFilePointer ptr = VirtualFilePointerManager.getInstance().create(virtualFile, getProject(), null);
+        settings = settings.withXsltFile(ptr);
     }
 
     public void setXsltFile(@NotNull VirtualFilePointer pointer) {
-        myXsltFile = pointer;
+        settings = settings.withXsltFile(pointer);
     }
 
     @Nullable
     public String getXsltFile() {
-        return myXsltFile != null ? myXsltFile.getPresentableUrl() : null;
+        return settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() : null;
     }
 
     @Nullable
     public VirtualFile findXsltFile() {
-        return myXsltFile != null ? myXsltFile.getFile() : null;
+        return settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getFile() : null;
     }
 
     public void setXmlInputFile(@NotNull String xmlInputFile) {
         if (xmlInputFile.isEmpty()) {
-            myXmlInputFile = null;
+            settings = settings.withXmlInputFile(null);
         } else {
-            myXmlInputFile =
-                    VirtualFilePointerManager.getInstance()
-                            .create(VfsUtilCore.pathToUrl(xmlInputFile).replace(File.separatorChar, '/'), getProject(), null);
+            VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
+                .create(VfsUtilCore.pathToUrl(xmlInputFile).replace(File.separatorChar, '/'), getProject(), null);
+            settings = settings.withXmlInputFile(ptr);
         }
     }
 
     public void setXmlInputFile(VirtualFile xmlInputFile) {
-        myXmlInputFile = VirtualFilePointerManager.getInstance().create(xmlInputFile, getProject(), null);
+        VirtualFilePointer ptr = VirtualFilePointerManager.getInstance().create(xmlInputFile, getProject(), null);
+        settings = settings.withXmlInputFile(ptr);
     }
 
     public void setXmlInputFile(@NotNull VirtualFilePointer pointer) {
-        myXmlInputFile = pointer;
+        settings = settings.withXmlInputFile(pointer);
     }
 
     @Nullable
     public String getXmlInputFile() {
-        return myXmlInputFile != null ? myXmlInputFile.getPresentableUrl() : null;
+        return settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getPresentableUrl() : null;
     }
 
     @Nullable
     public VirtualFile findXmlInputFile() {
-        return myXmlInputFile != null ? myXmlInputFile.getFile() : null;
+        return settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getFile() : null;
     }
 
     public boolean isOpenOutputFile() {
-        return myOpenOutputFile;
+        return settings.isOpenOutputFile();
     }
 
     public void setOpenOutputFile(boolean openOutputFile) {
-        this.myOpenOutputFile = openOutputFile;
+        this.settings = this.settings.withOpenOutputFile(openOutputFile);
     }
 
     public String getOutputFile() {
-        return myOutputFile;
+        return settings.getOutputFile();
     }
 
     public void setOutputFile(String outputFile) {
-        this.myOutputFile = outputFile;
+        this.settings = this.settings.withOutputFile(outputFile);
     }
 
     public void setUseTemporaryFiles(boolean useTemporaryFiles) {
-        this.useTemporaryFiles = useTemporaryFiles;
+        this.settings = this.settings.withUseTemporaryFiles(useTemporaryFiles);
     }
 
     public boolean isUseTemporaryFiles() {
-        return useTemporaryFiles;
+        return settings.isUseTemporaryFiles();
+    }
+
+    /**
+     * Returns the grouped settings object for this run configuration.
+     */
+    @NotNull
+    public XslFoRunSettings getSettings() {
+        return settings;
+    }
+
+    /**
+     * Replaces this configuration's settings instance.
+     */
+    public void setSettings(@NotNull XslFoRunSettings settings) {
+        this.settings = settings;
     }
 }

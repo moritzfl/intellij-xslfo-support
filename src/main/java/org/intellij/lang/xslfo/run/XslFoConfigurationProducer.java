@@ -33,7 +33,7 @@ public class XslFoConfigurationProducer extends LazyRunConfigurationProducer<Xsl
 
     @Override
     public boolean isConfigurationFromContext(@NotNull XslFoRunConfiguration configuration, ConfigurationContext context) {
-        Location location = context.getLocation();
+        Location<PsiElement> location = context.getLocation();
         if (location == null) {
             return false;
         }

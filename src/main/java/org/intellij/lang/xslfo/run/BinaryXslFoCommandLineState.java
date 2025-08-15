@@ -37,7 +37,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         super(environment);
 
         this.myXslFoRunConfiguration = xslFoRunConfiguration;
-        if (myXslFoRunConfiguration.isUseTemporaryFiles()) {
+        if (myXslFoRunConfiguration.getSettings().isUseTemporaryFiles()) {
             try {
                 temporaryFile = File.createTempFile("fo_", ".pdf");
             } catch (IOException e) {
@@ -73,30 +73,24 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
             @Override
             public void processTerminated(final @NotNull ProcessEvent event) {
 
-                Runnable runnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        Runnable runnable = new Runnable() {
-                            @Override
-                            public void run() {
-                                if (event.getExitCode() == 0) {
-                                    if (myXsltRunConfiguration.isOpenOutputFile()) {
-                                        final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
-                                        final VirtualFile fileByUrl = VirtualFileManager
-                                                .getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
-                                        if (fileByUrl != null) {
-                                            fileByUrl.refresh(true, false, () -> {
-                                                new OpenFileDescriptor(myXsltRunConfiguration.getProject(), fileByUrl).navigate(true);
-                                            });
-                                            return;
-                                        }
-                                    }
-                                    VirtualFileManager.getInstance().asyncRefresh(null);
+                Runnable runnable = () -> {
+                    Runnable runnable1 = () -> {
+                        if (event.getExitCode() == 0) {
+                            if (myXsltRunConfiguration.isOpenOutputFile()) {
+                                final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
+                                final VirtualFile fileByUrl = VirtualFileManager
+                                        .getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
+                                if (fileByUrl != null) {
+                                    fileByUrl.refresh(true,
+                                        false,
+                                        () -> new OpenFileDescriptor(myXsltRunConfiguration.getProject(), fileByUrl).navigate(true));
+                                    return;
                                 }
                             }
-                        };
-                        ApplicationManager.getApplication().runWriteAction(runnable);
-                    }
+                            VirtualFileManager.getInstance().asyncRefresh(null);
+                        }
+                    };
+                    ApplicationManager.getApplication().runWriteAction(runnable1);
                 };
                 SwingUtilities.invokeLater(runnable);
             }
@@ -119,10 +113,13 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         }
 
         // XML
-        if (myXslFoRunConfiguration.getXmlInputFile() == null || myXslFoRunConfiguration.getXmlInputFile().isEmpty()) {
+        String xmlInput = myXslFoRunConfiguration.getSettings().getXmlInputFilePointer() != null
+                ? myXslFoRunConfiguration.getSettings().getXmlInputFilePointer().getPresentableUrl()
+                : null;
+        if (xmlInput == null || xmlInput.isEmpty()) {
             throw new CantRunException("No XML input file selected");
         }
-        commandLine.addParameters("-xml", myXslFoRunConfiguration.getXmlInputFile());
+        commandLine.addParameters("-xml", xmlInput);
 
         // XSL
         if (myXslFoRunConfiguration.getXsltFile() == null || myXslFoRunConfiguration.getXsltFile().isEmpty()) {

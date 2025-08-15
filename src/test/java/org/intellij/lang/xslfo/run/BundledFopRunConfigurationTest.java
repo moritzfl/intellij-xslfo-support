@@ -41,7 +41,7 @@ public class BundledFopRunConfigurationTest {
     }
 
     @Test
-    public void writeAndReadExternal_withoutFilePointers_roundtripOutputSettings() throws Exception {
+    public void writeAndReadExternal_withoutFilePointers_roundtripOutputSettings() {
         Project project = XslFoRunExecutorTestHelper.createTestProject();
         XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
         BundledFopRunConfiguration config = new BundledFopRunConfiguration(project, factory);
