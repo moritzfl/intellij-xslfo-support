@@ -63,8 +63,8 @@ public class BundledFopRunConfigurationTest {
         BundledFopRunConfiguration config2 = new BundledFopRunConfiguration(project, factory);
         config2.readExternal(element);
 
-        assertEquals("/tmp/out.pdf", config2.getOutputFile());
-        assertTrue(config2.isOpenOutputFile());
-        assertTrue(config2.isUseTemporaryFiles());
+        assertEquals("/tmp/out.pdf", config2.getSettings().outputFile());
+        assertTrue(config2.getSettings().openOutputFile());
+        assertTrue(config2.getSettings().useTemporaryFiles());
     }
 }

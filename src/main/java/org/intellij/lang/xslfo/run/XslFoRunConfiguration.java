@@ -55,10 +55,12 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
     public void checkConfiguration() throws RuntimeConfigurationException {
         // Allow running with bundled FOP libraries even if external executable is not configured.
         // Keep basic validation of input selections; detailed checks happen at execution time.
-        if (getXsltFile() == null || getXsltFile().isEmpty()) {
+        String xslt = settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() : null;
+        if (xslt == null || xslt.isEmpty()) {
             throw new RuntimeConfigurationError("No XSLT file selected");
         }
-        if (getXmlInputFile() == null || getXmlInputFile().isEmpty()) {
+        String xml = settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getPresentableUrl() : null;
+        if (xml == null || xml.isEmpty()) {
             throw new RuntimeConfigurationError("No XML input file selected");
         }
     }
@@ -157,18 +159,17 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
             element.addContent(e);
         }
         e = new Element("OutputFile");
-        if (settings.getOutputFile() != null) {
-            e.setAttribute("path", settings.getOutputFile());
-            e.setAttribute("openOutputFile", Boolean.toString(settings.isOpenOutputFile()));
+        if (settings.outputFile() != null) {
+            e.setAttribute("path", settings.outputFile());
+            e.setAttribute("openOutputFile", Boolean.toString(settings.openOutputFile()));
             element.addContent(e);
         }
-        element.setAttribute("useTemporaryFiles", Boolean.toString(settings.isUseTemporaryFiles()));
+        element.setAttribute("useTemporaryFiles", Boolean.toString(settings.useTemporaryFiles()));
     }
 
     @Override
     public RunConfiguration clone() {
         final XslFoRunConfiguration configuration = (XslFoRunConfiguration) super.clone();
-        // Use XslFoRunSettings.clone() to create a copy of settings
         configuration.settings = this.settings.clone();
         return configuration;
     }
@@ -232,7 +233,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
     }
 
     public boolean isOpenOutputFile() {
-        return settings.isOpenOutputFile();
+        return settings.openOutputFile();
     }
 
     public void setOpenOutputFile(boolean openOutputFile) {
@@ -240,7 +241,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
     }
 
     public String getOutputFile() {
-        return settings.getOutputFile();
+        return settings.outputFile();
     }
 
     public void setOutputFile(String outputFile) {
@@ -252,7 +253,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
     }
 
     public boolean isUseTemporaryFiles() {
-        return settings.isUseTemporaryFiles();
+        return settings.useTemporaryFiles();
     }
 
     /**

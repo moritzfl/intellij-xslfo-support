@@ -1,6 +1,5 @@
 package org.intellij.lang.xslfo.run;
 
-import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.CommandLineState;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
@@ -37,7 +36,7 @@ class BundledFopCommandLineState extends CommandLineState {
     BundledFopCommandLineState(@NotNull XslFoRunConfiguration config, @NotNull ExecutionEnvironment environment) {
         super(environment);
         this.config = config;
-        if (config.isUseTemporaryFiles()) {
+        if (config.getSettings().useTemporaryFiles()) {
             try {
                 temporaryFile = File.createTempFile("fo_", ".pdf");
             } catch (IOException e) {
@@ -75,7 +74,7 @@ class BundledFopCommandLineState extends CommandLineState {
         handler.notifyProcessTerminated(exitCode);
         if (exitCode == 0) {
             // replicate open-output behavior
-            if (config.isOpenOutputFile()) {
+            if (config.getSettings().openOutputFile()) {
                 final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
                 final VirtualFile fileByUrl = VirtualFileManager.getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
                 if (fileByUrl != null) {
@@ -102,8 +101,8 @@ class BundledFopCommandLineState extends CommandLineState {
             // If properties cannot be set, proceed; FOP/Batik may still use defaults.
         }
 
-        String xmlPath = config.getXmlInputFile();
-        String xslPath = config.getXsltFile();
+        String xmlPath = config.getSettings().getXmlInputFilePointer() != null ? config.getSettings().getXmlInputFilePointer().getPresentableUrl() : null;
+        String xslPath = config.getSettings().getXsltFilePointer() != null ? config.getSettings().getXsltFilePointer().getPresentableUrl() : null;
         if (xmlPath == null || xmlPath.isEmpty()) throw new IOException("No XML input file selected");
         if (xslPath == null || xslPath.isEmpty()) throw new IOException("No XSLT file selected");
 
@@ -146,7 +145,8 @@ class BundledFopCommandLineState extends CommandLineState {
     }
 
     private String getOutputFilePath() {
-        return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : config.getOutputFile();
+        String out = config.getSettings().outputFile();
+        return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : out;
     }
 
     /**

@@ -37,7 +37,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         super(environment);
 
         this.myXslFoRunConfiguration = xslFoRunConfiguration;
-        if (myXslFoRunConfiguration.getSettings().isUseTemporaryFiles()) {
+        if (myXslFoRunConfiguration.getSettings().useTemporaryFiles()) {
             try {
                 temporaryFile = File.createTempFile("fo_", ".pdf");
             } catch (IOException e) {
@@ -76,7 +76,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
                 Runnable runnable = () -> {
                     Runnable runnable1 = () -> {
                         if (event.getExitCode() == 0) {
-                            if (myXsltRunConfiguration.isOpenOutputFile()) {
+                            if (myXsltRunConfiguration.getSettings().openOutputFile()) {
                                 final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
                                 final VirtualFile fileByUrl = VirtualFileManager
                                         .getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
@@ -122,10 +122,13 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         commandLine.addParameters("-xml", xmlInput);
 
         // XSL
-        if (myXslFoRunConfiguration.getXsltFile() == null || myXslFoRunConfiguration.getXsltFile().isEmpty()) {
+        String xslt = myXslFoRunConfiguration.getSettings().getXsltFilePointer() != null
+                ? myXslFoRunConfiguration.getSettings().getXsltFilePointer().getPresentableUrl()
+                : null;
+        if (xslt == null || xslt.isEmpty()) {
             throw new CantRunException("No XSLT file selected");
         }
-        commandLine.addParameters("-xsl", myXslFoRunConfiguration.getXsltFile());
+        commandLine.addParameters("-xsl", xslt);
 
         // OUTPUT FORMAT (TODO: add other formats support)
         commandLine.addParameter("-pdf");
@@ -136,6 +139,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     }
 
     private String getOutputFilePath() {
-        return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : myXslFoRunConfiguration.getOutputFile();
+        String out = myXslFoRunConfiguration.getSettings().outputFile();
+        return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : out;
     }
 }

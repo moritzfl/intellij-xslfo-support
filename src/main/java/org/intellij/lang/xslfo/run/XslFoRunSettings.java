@@ -12,27 +12,11 @@ import java.util.Objects;
  * This value object allows passing configuration around as a single unit,
  * using sensible types for file references (VirtualFilePointer) instead of raw strings.
  */
-public final class XslFoRunSettings implements Cloneable {
-
-    private final @Nullable VirtualFilePointer xsltFile;
-    private final @Nullable VirtualFilePointer xmlInputFile;
-    private final @Nullable String outputFile;
-    private final boolean openOutputFile;
-    private final boolean useTemporaryFiles;
-
-    public XslFoRunSettings(
-            @Nullable VirtualFilePointer xsltFile,
-            @Nullable VirtualFilePointer xmlInputFile,
-            @Nullable String outputFile,
-            boolean openOutputFile,
-            boolean useTemporaryFiles
-    ) {
-        this.xsltFile = xsltFile;
-        this.xmlInputFile = xmlInputFile;
-        this.outputFile = outputFile;
-        this.openOutputFile = openOutputFile;
-        this.useTemporaryFiles = useTemporaryFiles;
-    }
+public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
+                               @Nullable VirtualFilePointer xmlInputFile,
+                               @Nullable String outputFile,
+                               boolean openOutputFile,
+                               boolean useTemporaryFiles) implements Cloneable {
 
     public @Nullable VirtualFilePointer getXsltFilePointer() {
         return xsltFile;
@@ -40,18 +24,6 @@ public final class XslFoRunSettings implements Cloneable {
 
     public @Nullable VirtualFilePointer getXmlInputFilePointer() {
         return xmlInputFile;
-    }
-
-    public @Nullable String getOutputFile() {
-        return outputFile;
-    }
-
-    public boolean isOpenOutputFile() {
-        return openOutputFile;
-    }
-
-    public boolean isUseTemporaryFiles() {
-        return useTemporaryFiles;
     }
 
     public XslFoRunSettings withXsltFile(@Nullable VirtualFilePointer newXslt) {
@@ -89,25 +61,20 @@ public final class XslFoRunSettings implements Cloneable {
         if (this == o) return true;
         if (!(o instanceof XslFoRunSettings that)) return false;
         return openOutputFile == that.openOutputFile
-                && useTemporaryFiles == that.useTemporaryFiles
-                && Objects.equals(xsltFile, that.xsltFile)
-                && Objects.equals(xmlInputFile, that.xmlInputFile)
-                && Objects.equals(outputFile, that.outputFile);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles);
+            && useTemporaryFiles == that.useTemporaryFiles
+            && Objects.equals(xsltFile, that.xsltFile)
+            && Objects.equals(xmlInputFile, that.xmlInputFile)
+            && Objects.equals(outputFile, that.outputFile);
     }
 
     @Override
     public String toString() {
         return "XslFoRunSettings{" +
-                "xsltFile=" + (xsltFile != null ? xsltFile.getPresentableUrl() : "null") +
-                ", xmlInputFile=" + (xmlInputFile != null ? xmlInputFile.getPresentableUrl() : "null") +
-                ", outputFile='" + outputFile + '\'' +
-                ", openOutputFile=" + openOutputFile +
-                ", useTemporaryFiles=" + useTemporaryFiles +
-                '}';
+            "xsltFile=" + (xsltFile != null ? xsltFile.getPresentableUrl() : "null") +
+            ", xmlInputFile=" + (xmlInputFile != null ? xmlInputFile.getPresentableUrl() : "null") +
+            ", outputFile='" + outputFile + '\'' +
+            ", openOutputFile=" + openOutputFile +
+            ", useTemporaryFiles=" + useTemporaryFiles +
+            '}';
     }
 }

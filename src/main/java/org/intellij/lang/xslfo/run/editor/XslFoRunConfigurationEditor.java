@@ -60,11 +60,12 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     /* SettingsEditor<XslFoRunConfiguration> implementation */
     @Override
     protected void resetEditorFrom(XslFoRunConfiguration s) {
-        myXsltFile.setText(s.getXsltFile());
-        myXmlInputFile.getChildComponent().setSelectedItem(s.getXmlInputFile());
-        myOutputFile.setText(s.getOutputFile());
-        myOpenOutputFile.setSelected(s.isOpenOutputFile());
-        myUseTemporaryFiles.setSelected(s.isUseTemporaryFiles());
+        var settings = s.getSettings();
+        myXsltFile.setText(settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() : null);
+        myXmlInputFile.getChildComponent().setSelectedItem(settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getPresentableUrl() : null);
+        myOutputFile.setText(settings.outputFile());
+        myOpenOutputFile.setSelected(settings.openOutputFile());
+        myUseTemporaryFiles.setSelected(settings.useTemporaryFiles());
 
         FileChooserDescriptor xmlDescriptor = myXmlInputFile.getDescriptor();
 
@@ -80,11 +81,27 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
 
     @Override
     protected void applyEditorTo(XslFoRunConfiguration s) {
-        s.setXsltFile(myXsltFile.getText());
-        s.setXmlInputFile(myXmlInputFile.getXmlInputFile());
-        s.setOutputFile(myOutputFile.getText());
-        s.setOpenOutputFile(myOpenOutputFile.isSelected());
-        s.setUseTemporaryFiles(myUseTemporaryFiles.isSelected());
+        var settings = s.getSettings();
+        // Update via immutable with* methods
+        myXsltFile.getText();
+        if (myXsltFile.getText().isEmpty()) {
+            settings = settings.withXsltFile(null);
+        } else {
+            // The field stores a path string; keep using string-based setter utility from configuration for URL safety
+            s.setXsltFile(myXsltFile.getText());
+            settings = s.getSettings();
+        }
+        if (myXmlInputFile.getXmlInputFile() == null || myXmlInputFile.getXmlInputFile().isEmpty()) {
+            settings = settings.withXmlInputFile(null);
+        } else {
+            s.setXmlInputFile(myXmlInputFile.getXmlInputFile());
+            settings = s.getSettings();
+        }
+        settings = settings
+                .withOutputFile(myOutputFile.getText())
+                .withOpenOutputFile(myOpenOutputFile.isSelected())
+                .withUseTemporaryFiles(myUseTemporaryFiles.isSelected());
+        s.setSettings(settings);
     }
 
     @NotNull

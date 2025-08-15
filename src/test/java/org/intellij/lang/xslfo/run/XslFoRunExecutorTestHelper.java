@@ -43,10 +43,10 @@ public final class XslFoRunExecutorTestHelper {
     }
 
     static void setXsltPointer(XslFoRunConfiguration cfg) {
-        cfg.setXsltFile(new FakeVirtualFilePointer("/tmp/dummy.xsl"));
+        cfg.setSettings(cfg.getSettings().withXsltFile(new FakeVirtualFilePointer("/tmp/dummy.xsl")));
     }
 
     static void setXmlPointer(XslFoRunConfiguration cfg) {
-        cfg.setXmlInputFile(new FakeVirtualFilePointer("/tmp/dummy.xml"));
+        cfg.setSettings(cfg.getSettings().withXmlInputFile(new FakeVirtualFilePointer("/tmp/dummy.xml")));
     }
 }
