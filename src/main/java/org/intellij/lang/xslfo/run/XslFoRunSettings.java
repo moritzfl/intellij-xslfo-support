@@ -18,11 +18,12 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
                                @Nullable String outputFile,
                                boolean openOutputFile,
                                boolean useTemporaryFiles,
-                               // FOP resolution: by default use plugin defaults; if false, use the override fields below
-                               boolean usePluginDefaultFopSettings,
+                               // FOP execution selection (per-run, independent of configuration file)
+                               boolean useBundledFopOverride,
                                @Nullable String fopInstallationDirOverride,
-                               @Nullable String userConfigLocationOverride,
-                               boolean useBundledFopOverride) implements Cloneable {
+                               // FOP configuration (user config) source selection
+                               @NotNull SettingsFileMode configMode,
+                               @Nullable String configFilePath) implements Cloneable {
 
     public @Nullable VirtualFilePointer getXsltFilePointer() {
         return xsltFile;
@@ -34,47 +35,47 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
 
     public XslFoRunSettings withXsltFile(@Nullable VirtualFilePointer newXslt) {
         return new XslFoRunSettings(newXslt, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
+                useBundledFopOverride, fopInstallationDirOverride, configMode, configFilePath);
     }
 
     public XslFoRunSettings withXmlInputFile(@Nullable VirtualFilePointer newXml) {
         return new XslFoRunSettings(xsltFile, newXml, outputFile, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
+                useBundledFopOverride, fopInstallationDirOverride, configMode, configFilePath);
     }
 
     public XslFoRunSettings withOutputFile(@Nullable String newOutput) {
         return new XslFoRunSettings(xsltFile, xmlInputFile, newOutput, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
+                useBundledFopOverride, fopInstallationDirOverride, configMode, configFilePath);
     }
 
     public XslFoRunSettings withOpenOutputFile(boolean newOpen) {
         return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, newOpen, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
+                useBundledFopOverride, fopInstallationDirOverride, configMode, configFilePath);
     }
 
     public XslFoRunSettings withUseTemporaryFiles(boolean newUseTemp) {
         return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, newUseTemp,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
-    }
-
-    public XslFoRunSettings withUsePluginDefaultFopSettings(boolean useDefaults) {
-        return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
-                useDefaults, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
+                useBundledFopOverride, fopInstallationDirOverride, configMode, configFilePath);
     }
 
     public XslFoRunSettings withFopInstallationDirOverride(@Nullable String dir) {
         return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, dir, userConfigLocationOverride, useBundledFopOverride);
-    }
-
-    public XslFoRunSettings withUserConfigLocationOverride(@Nullable String userConfig) {
-        return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfig, useBundledFopOverride);
+                useBundledFopOverride, dir, configMode, configFilePath);
     }
 
     public XslFoRunSettings withUseBundledFopOverride(boolean useBundled) {
         return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundled);
+                useBundled, fopInstallationDirOverride, configMode, configFilePath);
+    }
+
+    public XslFoRunSettings withConfigMode(@NotNull SettingsFileMode mode) {
+        return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
+                useBundledFopOverride, fopInstallationDirOverride, mode, configFilePath);
+    }
+
+    public XslFoRunSettings withConfigFilePath(@Nullable String path) {
+        return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
+                useBundledFopOverride, fopInstallationDirOverride, configMode, path);
     }
 
     /**
@@ -84,7 +85,7 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
      */
     public @NotNull XslFoRunSettings clone() {
         return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, useTemporaryFiles,
-                usePluginDefaultFopSettings, fopInstallationDirOverride, userConfigLocationOverride, useBundledFopOverride);
+                useBundledFopOverride, fopInstallationDirOverride, configMode, configFilePath);
     }
 
     @Override
@@ -93,13 +94,13 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
         if (!(o instanceof XslFoRunSettings that)) return false;
         return openOutputFile == that.openOutputFile
                 && useTemporaryFiles == that.useTemporaryFiles
-                && usePluginDefaultFopSettings == that.usePluginDefaultFopSettings
                 && useBundledFopOverride == that.useBundledFopOverride
                 && Objects.equals(xsltFile, that.xsltFile)
                 && Objects.equals(xmlInputFile, that.xmlInputFile)
                 && Objects.equals(outputFile, that.outputFile)
                 && Objects.equals(fopInstallationDirOverride, that.fopInstallationDirOverride)
-                && Objects.equals(userConfigLocationOverride, that.userConfigLocationOverride);
+                && configMode == that.configMode
+                && Objects.equals(configFilePath, that.configFilePath);
     }
 
     @Override
@@ -110,10 +111,10 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
                 ", outputFile='" + outputFile + '\'' +
                 ", openOutputFile=" + openOutputFile +
                 ", useTemporaryFiles=" + useTemporaryFiles +
-                ", usePluginDefaultFopSettings=" + usePluginDefaultFopSettings +
-                ", fopInstallationDirOverride='" + fopInstallationDirOverride + '\'' +
-                ", userConfigLocationOverride='" + userConfigLocationOverride + '\'' +
                 ", useBundledFopOverride=" + useBundledFopOverride +
+                ", fopInstallationDirOverride='" + fopInstallationDirOverride + '\'' +
+                ", configMode=" + configMode +
+                ", configFilePath='" + configFilePath + '\'' +
                 '}';
     }
 }

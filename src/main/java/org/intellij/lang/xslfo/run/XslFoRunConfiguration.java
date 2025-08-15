@@ -40,7 +40,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
 
     private String mySuggestedName;
 
-    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, true, null, null, true);
+    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, true, null, SettingsFileMode.PLUGIN, null);
 
     public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
         super(project, factory, NAME);
@@ -116,10 +116,11 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         String outPath = null;
         boolean openOut = false;
         boolean useTemp = false;
-        boolean useDefaults = true;
         boolean useBundledOverride = true;
         String fopDirOverride = null;
-        String userConfigOverride = null;
+        // New settings: config mode and path
+        SettingsFileMode configMode = SettingsFileMode.PLUGIN;
+        String configFilePath = null;
 
         Element e = element.getChild("XsltFile");
         if (e != null) {
@@ -145,10 +146,6 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         if (useTempAttr != null) {
             useTemp = Boolean.parseBoolean(useTempAttr);
         }
-        String useDefaultsAttr = element.getAttributeValue("usePluginDefaultFopSettings");
-        if (useDefaultsAttr != null) {
-            useDefaults = Boolean.parseBoolean(useDefaultsAttr);
-        }
         String useBundledOverrideAttr = element.getAttributeValue("useBundledFopOverride");
         if (useBundledOverrideAttr != null) {
             useBundledOverride = Boolean.parseBoolean(useBundledOverrideAttr);
@@ -157,11 +154,34 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         if (fopDirAttr != null && !fopDirAttr.isEmpty()) {
             fopDirOverride = fopDirAttr;
         }
-        String userConfigAttr = element.getAttributeValue("userConfigLocationOverride");
-        if (userConfigAttr != null && !userConfigAttr.isEmpty()) {
-            userConfigOverride = userConfigAttr;
+        // New persistence
+        String configModeAttr = element.getAttributeValue("configMode");
+        if (configModeAttr != null) {
+            try {
+                configMode = SettingsFileMode.valueOf(configModeAttr);
+            } catch (IllegalArgumentException ignore) {
+                configMode = SettingsFileMode.PLUGIN;
+            }
+        } else {
+            // Backward compatibility: infer from legacy attributes
+            String useDefaultsAttr = element.getAttributeValue("usePluginDefaultFopSettings");
+            boolean useDefaults = useDefaultsAttr == null || Boolean.parseBoolean(useDefaultsAttr);
+            String legacyUserConfig = element.getAttributeValue("userConfigLocationOverride");
+            if (useDefaults) {
+                configMode = SettingsFileMode.PLUGIN;
+            } else if (legacyUserConfig != null && !legacyUserConfig.isEmpty()) {
+                configMode = SettingsFileMode.FILE;
+                configFilePath = legacyUserConfig;
+            } else {
+                configMode = SettingsFileMode.EMPTY;
+            }
         }
-        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, useDefaults, fopDirOverride, userConfigOverride, useBundledOverride);
+        String configPathAttr = element.getAttributeValue("configFilePath");
+        if (configPathAttr != null && !configPathAttr.isEmpty()) {
+            configFilePath = configPathAttr;
+        }
+
+        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, useBundledOverride, fopDirOverride, configMode, configFilePath);
     }
 
     @Override
@@ -185,13 +205,13 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
             element.addContent(e);
         }
         element.setAttribute("useTemporaryFiles", Boolean.toString(settings.useTemporaryFiles()));
-        element.setAttribute("usePluginDefaultFopSettings", Boolean.toString(settings.usePluginDefaultFopSettings()));
         element.setAttribute("useBundledFopOverride", Boolean.toString(settings.useBundledFopOverride()));
         if (settings.fopInstallationDirOverride() != null) {
             element.setAttribute("fopInstallationDirOverride", settings.fopInstallationDirOverride());
         }
-        if (settings.userConfigLocationOverride() != null) {
-            element.setAttribute("userConfigLocationOverride", settings.userConfigLocationOverride());
+        element.setAttribute("configMode", settings.configMode().name());
+        if (settings.configMode() == SettingsFileMode.FILE && settings.configFilePath() != null) {
+            element.setAttribute("configFilePath", settings.configFilePath());
         }
     }
 

@@ -51,9 +51,8 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     @NotNull
     @Override
     protected ProcessHandler startProcess() throws ExecutionException {
-        // Decide bundled vs binary based on per-run override or plugin defaults
-        boolean useDefaults = myXslFoRunConfiguration.getSettings().usePluginDefaultFopSettings();
-        boolean useBundled = useDefaults ? mySettings.isUseBundledFop() : myXslFoRunConfiguration.getSettings().useBundledFopOverride();
+        // Decide bundled vs binary based solely on per-run selection
+        boolean useBundled = myXslFoRunConfiguration.getSettings().useBundledFopOverride();
         if (useBundled) {
             return new BundledFopCommandLineState(myXslFoRunConfiguration, getEnvironment()).startProcess();
         }
@@ -102,8 +101,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
 
     protected GeneralCommandLine buildCommandLine() throws ExecutionException {
         GeneralCommandLine commandLine = new GeneralCommandLine();
-        boolean useDefaults = myXslFoRunConfiguration.getSettings().usePluginDefaultFopSettings();
-        String installDir = useDefaults ? mySettings.getFopInstallationDir() : myXslFoRunConfiguration.getSettings().fopInstallationDirOverride();
+        String installDir = myXslFoRunConfiguration.getSettings().fopInstallationDirOverride();
         VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(installDir);
         if (fopExecutablePath != null) {
             commandLine.setExePath(fopExecutablePath.getPath());
@@ -112,7 +110,13 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
             commandLine.setExePath("fop");
         }
 
-        String userConfig = useDefaults ? mySettings.getUserConfigLocation() : myXslFoRunConfiguration.getSettings().userConfigLocationOverride();
+        String userConfig;
+        switch (myXslFoRunConfiguration.getSettings().configMode()) {
+            case PLUGIN -> userConfig = mySettings.getUserConfigLocation();
+            case EMPTY -> userConfig = null;
+            case FILE -> userConfig = myXslFoRunConfiguration.getSettings().configFilePath();
+            default -> userConfig = null;
+        }
         VirtualFile fopUserConfig = XslFoUtils.findFopUserConfig(userConfig);
         if (fopUserConfig != null) {
             commandLine.addParameters("-c", fopUserConfig.getPath());
