@@ -58,7 +58,8 @@ public class XslFoConfigurable implements SearchableConfigurable, Configurable.N
     public boolean isModified() {
         return mySettingsPanel == null
                 || !Objects.equal(mySettings.getFopInstallationDir(), mySettingsPanel.getFopInstallationDir())
-                || !Objects.equal(mySettings.getUserConfigLocation(), mySettingsPanel.getUserConfigLocation());
+                || !Objects.equal(mySettings.getUserConfigLocation(), mySettingsPanel.getUserConfigLocation())
+                || mySettings.isUseBundledFop() != mySettingsPanel.isUseBundledFopSelected();
     }
 
     @Override
@@ -66,6 +67,7 @@ public class XslFoConfigurable implements SearchableConfigurable, Configurable.N
         if (mySettingsPanel != null) {
             mySettings.setFopInstallationDir(mySettingsPanel.getFopInstallationDir());
             mySettings.setUserConfigLocation(mySettingsPanel.getUserConfigLocation());
+            mySettings.setUseBundledFop(mySettingsPanel.isUseBundledFopSelected());
         }
     }
 
@@ -74,6 +76,7 @@ public class XslFoConfigurable implements SearchableConfigurable, Configurable.N
         if (mySettingsPanel != null) {
             mySettingsPanel.setFopInstallationDir(mySettings.getFopInstallationDir());
             mySettingsPanel.setUserConfigLocation(mySettings.getUserConfigLocation());
+            mySettingsPanel.setUseBundledFopSelected(mySettings.isUseBundledFop());
         }
     }
 

@@ -17,6 +17,7 @@ public class XslFoSettings implements PersistentStateComponent<XslFoSettings> {
 
     private String myFopInstallationDir;
     private String myUserConfigLocation;
+    private boolean myUseBundledFop = true;
 
 
     public String getFopInstallationDir() {
@@ -33,6 +34,14 @@ public class XslFoSettings implements PersistentStateComponent<XslFoSettings> {
 
     public void setUserConfigLocation(String userConfigLocation) {
         this.myUserConfigLocation = userConfigLocation;
+    }
+
+    public boolean isUseBundledFop() {
+        return myUseBundledFop;
+    }
+
+    public void setUseBundledFop(boolean useBundledFop) {
+        this.myUseBundledFop = useBundledFop;
     }
 
     @Nullable

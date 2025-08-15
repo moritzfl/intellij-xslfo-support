@@ -18,14 +18,13 @@ public class XslFoConfigurationFactory extends ConfigurationFactory {
 
     @Override
     public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project) {
-        // Decide default implementation: use external binary if configured, otherwise bundled FOP
         org.intellij.lang.xslfo.XslFoSettings settings = org.intellij.lang.xslfo.XslFoSettings.getInstance();
-        org.intellij.lang.xslfo.XslFoUtils utils = new org.intellij.lang.xslfo.XslFoUtils();
-        com.intellij.openapi.vfs.VirtualFile fop = org.intellij.lang.xslfo.XslFoUtils.findFopExecutable(settings != null ? settings.getFopInstallationDir() : null);
-        if (fop != null) {
+        boolean useBundled = settings == null || settings.isUseBundledFop();
+        if (useBundled) {
+            return new BundledFopRunConfiguration(project, this);
+        } else {
             return new BinaryXslFoRunConfiguration(project, this);
         }
-        return new BundledFopRunConfiguration(project, this);
     }
 
     @Override

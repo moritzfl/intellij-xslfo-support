@@ -21,6 +21,9 @@ public class XslFoSettingsPanel {
     private JPanel myValidationPanel;
     private JLabel myWarningLabel;
     private JSeparator mySeparator;
+    private JRadioButton myUseBundledFopRadio;
+    private JRadioButton myUseBinaryFopRadio;
+    private JLabel myBundledFopVersionLabel;
 
     public XslFoSettingsPanel() {
         // Replace deprecated addBrowseFolderListener with explicit chooser actions
@@ -38,6 +41,32 @@ public class XslFoSettingsPanel {
                     }
                 }));
 
+        // group radio buttons and hook enable/disable
+        ButtonGroup group = new ButtonGroup();
+        group.add(myUseBundledFopRadio);
+        group.add(myUseBinaryFopRadio);
+        myUseBundledFopRadio.addActionListener(e -> updateEnabledStates());
+        myUseBinaryFopRadio.addActionListener(e -> updateEnabledStates());
+
+        // set bundled FOP version text without relying on FOP classes at runtime
+        String version = null;
+        try {
+            java.io.InputStream is = XslFoSettingsPanel.class.getClassLoader()
+                    .getResourceAsStream("META-INF/xslfo/bundled-fop-version.txt");
+            if (is != null) {
+                try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(is))) {
+                    String line = br.readLine();
+                    if (line != null && !line.trim().isEmpty()) {
+                        version = line.trim();
+                    }
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        if (version == null) version = "unknown";
+        if (myUseBundledFopRadio != null) {
+            myUseBundledFopRadio.setText("Use bundled FOP (" + version + ")");
+        }
         // configure Settings Validation
         myWarningLabel.setIcon(AllIcons.General.BalloonError);
         MySettingsPanelChangeListener changeListener = new MySettingsPanelChangeListener();
@@ -46,6 +75,7 @@ public class XslFoSettingsPanel {
         myUserConfigLocation.getTextField().getDocument().addDocumentListener(changeListener);
         myPanel.addComponentListener(changeListener);
 
+        updateEnabledStates();
     }
 
     public JComponent getComponent() {
@@ -66,6 +96,38 @@ public class XslFoSettingsPanel {
 
     public void setUserConfigLocation(String userConfigLocation) {
         myUserConfigLocation.setText(userConfigLocation);
+    }
+
+    public boolean isUseBundledFopSelected() {
+        return myUseBundledFopRadio.isSelected();
+    }
+
+    public void setUseBundledFopSelected(boolean useBundled) {
+        myUseBundledFopRadio.setSelected(useBundled);
+        myUseBinaryFopRadio.setSelected(!useBundled);
+        updateEnabledStates();
+    }
+
+    private void updateEnabledStates() {
+        boolean bundled = myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected();
+        // When bundled is selected, installation dir is irrelevant; keep user config available for both
+        myFopInstallationDir.setEnabled(!bundled);
+        if (myBundledFopVersionLabel != null) {
+            if (bundled) {
+                // Hide info when bundled is selected
+                myBundledFopVersionLabel.setVisible(false);
+                myBundledFopVersionLabel.setText("");
+            } else {
+                // Show info explaining how the binary FOP will be resolved
+                String dir = myFopInstallationDir.getText();
+                if (dir == null || dir.trim().isEmpty()) {
+                    myBundledFopVersionLabel.setText("Using FOP from system PATH (command: 'fop')");
+                } else {
+                    myBundledFopVersionLabel.setText("Using FOP from installation directory: " + dir.trim());
+                }
+                myBundledFopVersionLabel.setVisible(true);
+            }
+        }
     }
 
     private String validateSettings() {
@@ -130,6 +192,8 @@ public class XslFoSettingsPanel {
                 myWarningLabel.setText(errorMsg);
                 myValidationPanel.setVisible(true);
             }
+            // Also refresh binary info text/visibility when fields change
+            updateEnabledStates();
         }
     }
 }

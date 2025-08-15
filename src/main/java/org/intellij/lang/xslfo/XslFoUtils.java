@@ -13,22 +13,37 @@ import java.io.File;
 public class XslFoUtils {
 
     public static VirtualFile findFopExecutable(String pathToFopInstallationDir) {
-        if(pathToFopInstallationDir == null) {
+        if (pathToFopInstallationDir == null || pathToFopInstallationDir.isEmpty()) {
             return null;
         }
         String url = VfsUtilCore.pathToUrl(pathToFopInstallationDir).replace(File.separatorChar, '/');
-        VirtualFile fopInstallationDir = VirtualFileManager.getInstance().findFileByUrl(url);
-        if (fopInstallationDir == null) {
+        VirtualFile base = VirtualFileManager.getInstance().findFileByUrl(url);
+        if (base == null) {
             return null;
         }
-        String executableName;
-        if (Platform.current() == Platform.WINDOWS) {
-            executableName = "fop.bat";
-        } else {
-            executableName = "fop";
+        String executableName = (Platform.current() == Platform.WINDOWS) ? "fop.bat" : "fop";
+
+        // If the path points directly to the executable (rare, but be tolerant)
+        if (!base.isDirectory() && executableName.equalsIgnoreCase(base.getName())) {
+            return base;
         }
 
-        return fopInstallationDir.findChild(executableName);
+        // Try <installDir>/bin/<exe>
+        if (base.isDirectory()) {
+            VirtualFile bin = base.findChild("bin");
+            if (bin != null) {
+                VirtualFile exe = bin.findChild(executableName);
+                if (exe != null) {
+                    return exe;
+                }
+            }
+            // Try <installDir>/<exe>
+            VirtualFile exe = base.findChild(executableName);
+            if (exe != null) {
+                return exe;
+            }
+        }
+        return null;
     }
 
     public static VirtualFile findFopUserConfig(String userConfigLocation) {

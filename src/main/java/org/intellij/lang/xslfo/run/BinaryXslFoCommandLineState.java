@@ -51,9 +51,8 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     @NotNull
     @Override
     protected ProcessHandler startProcess() throws ExecutionException {
-        // Fallback: if no external FOP executable is configured or found, run using bundled FOP instead of failing.
-        VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(mySettings.getFopInstallationDir());
-        if (fopExecutablePath == null) {
+        // If user explicitly selected bundled FOP, delegate (should not happen given factory, but safe)
+        if (mySettings.isUseBundledFop()) {
             return new BundledFopCommandLineState(myXslFoRunConfiguration, getEnvironment()).startProcess();
         }
 
@@ -102,10 +101,12 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     protected GeneralCommandLine buildCommandLine() throws ExecutionException {
         GeneralCommandLine commandLine = new GeneralCommandLine();
         VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(mySettings.getFopInstallationDir());
-        if (fopExecutablePath == null) {
-            throw new CantRunException("Invalid FOP installation directory");
+        if (fopExecutablePath != null) {
+            commandLine.setExePath(fopExecutablePath.getPath());
+        } else {
+            // No installation dir configured; use FOP from PATH
+            commandLine.setExePath("fop");
         }
-        commandLine.setExePath(fopExecutablePath.getPath());
 
         VirtualFile fopUserConfig = XslFoUtils.findFopUserConfig(mySettings.getUserConfigLocation());
         if (fopUserConfig != null) {
