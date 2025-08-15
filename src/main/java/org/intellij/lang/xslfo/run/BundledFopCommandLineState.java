@@ -94,7 +94,7 @@ class BundledFopCommandLineState extends CommandLineState {
                 final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
                 final VirtualFile fileByUrl = VirtualFileManager.getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
                 if (fileByUrl != null) {
-                    fileByUrl.refresh(true, false, () -> new OpenFileDescriptor(config.getProject(), fileByUrl).navigate(true));
+                    fileByUrl.refresh(true, false, () -> FopExecutionHelper.openFileInEditor(config.getProject(), fileByUrl));
                     return;
                 }
             }

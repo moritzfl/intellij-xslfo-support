@@ -89,7 +89,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
                                 if (fileByUrl != null) {
                                     fileByUrl.refresh(true,
                                         false,
-                                        () -> new OpenFileDescriptor(myXsltRunConfiguration.getProject(), fileByUrl).navigate(true));
+                                        () -> FopExecutionHelper.openFileInEditor(myXsltRunConfiguration.getProject(), fileByUrl));
                                     return;
                                 }
                             }
