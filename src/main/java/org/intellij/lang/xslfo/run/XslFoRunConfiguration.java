@@ -40,7 +40,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
 
     private String mySuggestedName;
 
-    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false);
+    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, true, null, null, true);
 
     public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
         super(project, factory, NAME);
@@ -116,6 +116,10 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         String outPath = null;
         boolean openOut = false;
         boolean useTemp = false;
+        boolean useDefaults = true;
+        boolean useBundledOverride = true;
+        String fopDirOverride = null;
+        String userConfigOverride = null;
 
         Element e = element.getChild("XsltFile");
         if (e != null) {
@@ -141,7 +145,23 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         if (useTempAttr != null) {
             useTemp = Boolean.parseBoolean(useTempAttr);
         }
-        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp);
+        String useDefaultsAttr = element.getAttributeValue("usePluginDefaultFopSettings");
+        if (useDefaultsAttr != null) {
+            useDefaults = Boolean.parseBoolean(useDefaultsAttr);
+        }
+        String useBundledOverrideAttr = element.getAttributeValue("useBundledFopOverride");
+        if (useBundledOverrideAttr != null) {
+            useBundledOverride = Boolean.parseBoolean(useBundledOverrideAttr);
+        }
+        String fopDirAttr = element.getAttributeValue("fopInstallationDirOverride");
+        if (fopDirAttr != null && !fopDirAttr.isEmpty()) {
+            fopDirOverride = fopDirAttr;
+        }
+        String userConfigAttr = element.getAttributeValue("userConfigLocationOverride");
+        if (userConfigAttr != null && !userConfigAttr.isEmpty()) {
+            userConfigOverride = userConfigAttr;
+        }
+        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, useDefaults, fopDirOverride, userConfigOverride, useBundledOverride);
     }
 
     @Override
@@ -165,6 +185,14 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
             element.addContent(e);
         }
         element.setAttribute("useTemporaryFiles", Boolean.toString(settings.useTemporaryFiles()));
+        element.setAttribute("usePluginDefaultFopSettings", Boolean.toString(settings.usePluginDefaultFopSettings()));
+        element.setAttribute("useBundledFopOverride", Boolean.toString(settings.useBundledFopOverride()));
+        if (settings.fopInstallationDirOverride() != null) {
+            element.setAttribute("fopInstallationDirOverride", settings.fopInstallationDirOverride());
+        }
+        if (settings.userConfigLocationOverride() != null) {
+            element.setAttribute("userConfigLocationOverride", settings.userConfigLocationOverride());
+        }
     }
 
     @Override

@@ -113,7 +113,10 @@ class BundledFopCommandLineState extends CommandLineState {
 
         // Configure FOP factory; optionally load user config if present
         XslFoSettings settings = XslFoSettings.getInstance();
-        String userConfig = settings != null ? settings.getUserConfigLocation() : null;
+        boolean useDefaults = config.getSettings().usePluginDefaultFopSettings();
+        String userConfig = useDefaults
+                ? (settings != null ? settings.getUserConfigLocation() : null)
+                : config.getSettings().userConfigLocationOverride();
         FopFactory fopFactory;
         if (userConfig != null && !userConfig.isEmpty()) {
             FopConfParser parser = new FopConfParser(new File(userConfig));

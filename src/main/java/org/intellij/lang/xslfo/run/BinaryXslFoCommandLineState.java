@@ -51,8 +51,10 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     @NotNull
     @Override
     protected ProcessHandler startProcess() throws ExecutionException {
-        // If user explicitly selected bundled FOP, delegate (should not happen given factory, but safe)
-        if (mySettings.isUseBundledFop()) {
+        // Decide bundled vs binary based on per-run override or plugin defaults
+        boolean useDefaults = myXslFoRunConfiguration.getSettings().usePluginDefaultFopSettings();
+        boolean useBundled = useDefaults ? mySettings.isUseBundledFop() : myXslFoRunConfiguration.getSettings().useBundledFopOverride();
+        if (useBundled) {
             return new BundledFopCommandLineState(myXslFoRunConfiguration, getEnvironment()).startProcess();
         }
 
@@ -100,7 +102,9 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
 
     protected GeneralCommandLine buildCommandLine() throws ExecutionException {
         GeneralCommandLine commandLine = new GeneralCommandLine();
-        VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(mySettings.getFopInstallationDir());
+        boolean useDefaults = myXslFoRunConfiguration.getSettings().usePluginDefaultFopSettings();
+        String installDir = useDefaults ? mySettings.getFopInstallationDir() : myXslFoRunConfiguration.getSettings().fopInstallationDirOverride();
+        VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(installDir);
         if (fopExecutablePath != null) {
             commandLine.setExePath(fopExecutablePath.getPath());
         } else {
@@ -108,7 +112,8 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
             commandLine.setExePath("fop");
         }
 
-        VirtualFile fopUserConfig = XslFoUtils.findFopUserConfig(mySettings.getUserConfigLocation());
+        String userConfig = useDefaults ? mySettings.getUserConfigLocation() : myXslFoRunConfiguration.getSettings().userConfigLocationOverride();
+        VirtualFile fopUserConfig = XslFoUtils.findFopUserConfig(userConfig);
         if (fopUserConfig != null) {
             commandLine.addParameters("-c", fopUserConfig.getPath());
         }
