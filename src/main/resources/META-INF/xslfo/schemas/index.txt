@@ -1,0 +1,8 @@
+# List bundled XSD schema resources here, one per line.
+# Bundled schemas:
+META-INF/xslfo/schemas/fop-schema/dc.xsd
+META-INF/xslfo/schemas/fop-schema/fo.xsd
+META-INF/xslfo/schemas/fop-schema/fop-config.xsd
+META-INF/xslfo/schemas/fop-schema/fox.xsd
+META-INF/xslfo/schemas/fop-schema/rdf.xsd
+META-INF/xslfo/schemas/fop-schema/xmpmeta.xsd

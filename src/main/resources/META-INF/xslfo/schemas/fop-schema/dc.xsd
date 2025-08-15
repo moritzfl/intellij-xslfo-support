@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://purl.org/dc/elements/1.1/"
+           elementFormDefault="qualified">
+
+    <xs:annotation>
+        <xs:documentation>
+            XML Schema for Dublin Core Metadata Elements.
+            This schema defines the basic Dublin Core metadata elements used for resource description.
+
+            For more information on Dublin Core, see:
+            - Dublin Core Metadata Initiative: https://dublincore.org/
+        </xs:documentation>
+    </xs:annotation>
+
+    <xs:element name="title" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The name given to the resource. Typically, a Title will be a name by which the resource is formally known.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="creator" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                An entity primarily responsible for making the content of the resource. Examples of a Creator include a person, an organization, or a service.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="description" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                An account of the content of the resource. Description may include but is not limited to: an abstract, table of contents, reference to a graphical representation of content or a free-text account of the content.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="subject" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                The topic of the content of the resource. Typically, a Subject will be expressed as keywords, key phrases, or classification codes that describe the topic of the resource.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="publisher" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                An entity responsible for making the resource available. Examples of a Publisher include a person, an organization, or a service.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:element name="date" type="xs:string">
+        <xs:annotation>
+            <xs:documentation>
+                A date associated with an event in the life cycle of the resource. Typically, Date will be associated with the creation or availability of the resource.
+            </xs:documentation>
+        </xs:annotation>
+    </xs:element>
+
+</xs:schema>

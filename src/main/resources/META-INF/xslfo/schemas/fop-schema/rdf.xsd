@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+           targetNamespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+           elementFormDefault="qualified">
+
+    <xs:annotation>
+        <xs:documentation>
+            XML Schema for RDF (Resource Description Framework).
+            This schema defines the basic structure for RDF metadata used in various document formats.
+
+            For more information on RDF, see:
+            - W3C RDF Specification: https://www.w3.org/RDF/
+        </xs:documentation>
+    </xs:annotation>
+
+    <xs:element name="RDF">
+        <xs:annotation>
+            <xs:documentation>
+                The root element for RDF metadata. It contains descriptions of resources.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element ref="rdf:Description" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:anyAttribute namespace="##other" processContents="lax"/>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="Description">
+        <xs:annotation>
+            <xs:documentation>
+                Describes a resource using property elements.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:any namespace="##any" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="about" type="xs:string" use="optional"/>
+            <xs:anyAttribute namespace="##other" processContents="lax"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

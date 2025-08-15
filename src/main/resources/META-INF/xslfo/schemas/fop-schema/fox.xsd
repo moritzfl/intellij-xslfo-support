@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<xs:schema xmlns="http://www.w3.org/2001/XMLSchema"
+           targetNamespace = "http://xmlgraphics.apache.org/fop/extensions"
+           xmlns:fox="http://xmlgraphics.apache.org/fop/extensions"
+           xmlns:fo="http://www.w3.org/1999/XSL/Format"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+  <xs:annotation>
+    <xs:documentation>
+      XML Schema for Apache FOP Extensions (FOX). This schema defines FOP-specific extensions to the XSL-FO standard,
+      providing additional functionality for PDF output and other features not covered by the standard XSL-FO specification.
+
+      These extensions include features for PDF bookmarks, document metadata, accessibility, form fields, watermarks,
+      and security settings.
+
+      For more information, see the Apache FOP documentation: https://xmlgraphics.apache.org/fop/
+    </xs:documentation>
+  </xs:annotation>
+  <xs:import namespace="fo" schemaLocation="fo.xsd"/>
+  <xs:import namespace="http://www.w3.org/XML/1998/namespace"/>
+
+  <!-- FOP-specific extension attributes -->
+  <xs:attribute name="destination">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies a destination for internal links within a document.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+  <xs:attribute name="alt-text">
+    <xs:annotation>
+      <xs:documentation>
+        Provides alternative text for images and other non-text content, improving accessibility.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+  <xs:attribute name="header">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies header text for accessibility purposes.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+  <xs:attribute name="fox-destination-color">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies the color of a link destination in PDF output.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+  <xs:attribute name="fox-destination-type">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies the type of a link destination in PDF output.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+  <xs:attribute name="fox-destination-show">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies how a link destination should be displayed in PDF output.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+
+  <!-- PDF-specific scaling options -->
+  <xs:attribute name="scaling">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies how images should be scaled in PDF output. Options include uniform scaling (preserves aspect ratio),
+        non-uniform scaling (may distort the image), or inherit (use the parent's scaling).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleType>
+      <xs:restriction base="xs:token">
+        <xs:enumeration value="uniform"/>
+        <xs:enumeration value="non-uniform"/>
+        <xs:enumeration value="inherit"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:attribute>
+
+  <!-- PDF bookmarks and document information -->
+  <xs:element name="document-info">
+    <xs:annotation>
+      <xs:documentation>
+        Contains metadata information about the document, such as title, author, subject, and keywords.
+        This information is used in PDF document properties and can be accessed by document management systems.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element maxOccurs="unbounded" ref="fox:document-info-entry"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="document-info-entry">
+    <xs:annotation>
+      <xs:documentation>
+        Represents a single metadata entry in the document information. Common entries include:
+        - title: The document's title
+        - author: The document's author
+        - subject: The document's subject
+        - keywords: Keywords associated with the document
+        - creator: The application that created the document
+        - producer: The application that produced the PDF
+        - created: The document creation date
+        - custom entries can also be defined
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="name" use="required">
+        <xs:annotation>
+          <xs:documentation>
+            The name of the metadata entry (e.g., "title", "author", "subject").
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="value" use="required">
+        <xs:annotation>
+          <xs:documentation>
+            The value of the metadata entry.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- PDF accessibility features -->
+  <xs:element name="accessibility">
+    <xs:annotation>
+      <xs:documentation>
+        Defines accessibility settings for PDF output. These settings enhance the accessibility of PDF documents
+        for users with disabilities, making them more compatible with screen readers and other assistive technologies.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="language">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the primary language of the document (e.g., "en" for English, "de" for German).
+            This helps screen readers pronounce text correctly.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="title">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the document title for accessibility purposes. This title is used by screen readers
+            and other assistive technologies to identify the document.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="tagged">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies whether to create a tagged PDF. Tagged PDFs include structural information that makes
+            the document more accessible to screen readers and other assistive technologies.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="true"/>
+            <xs:enumeration value="false"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- PDF form fields -->
+  <xs:element name="form-field" substitutionGroup="fo:basic-inlines">
+    <xs:annotation>
+      <xs:documentation>
+        Defines an interactive form field in a PDF document. Form fields allow users to enter data,
+        make selections, or trigger actions in the PDF document.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="field-name" use="required">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the name of the form field. This name is used to identify the field in the PDF form.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="field-type">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the type of form field. Different field types have different appearances and behaviors.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="text"/>
+            <xs:enumeration value="button"/>
+            <xs:enumeration value="checkbox"/>
+            <xs:enumeration value="radio"/>
+            <xs:enumeration value="combobox"/>
+            <xs:enumeration value="listbox"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="field-value">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the initial value of the form field.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="field-description">
+        <xs:annotation>
+          <xs:documentation>
+            Provides a description of the form field for accessibility purposes.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attributeGroup ref="fo:accessibility-properties"/>
+      <xs:attributeGroup ref="fo:relative-position-properties"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- PDF watermark -->
+  <xs:element name="watermark" substitutionGroup="fo:basic-blocks">
+    <xs:annotation>
+      <xs:documentation>
+        Defines a watermark to be displayed on the page. Watermarks are text or images that appear
+        behind the main content of the page, often used to indicate document status (e.g., "DRAFT", "CONFIDENTIAL").
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="text">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the text to be displayed as a watermark.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="opacity">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the opacity (transparency) of the watermark, as a value between 0 (completely transparent)
+            and 1 (completely opaque).
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="rotation">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the rotation angle of the watermark text, in degrees.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attributeGroup ref="fo:block-properties"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- PDF security settings -->
+  <xs:element name="pdf-security">
+    <xs:annotation>
+      <xs:documentation>
+        Defines security settings for PDF output. These settings control encryption, passwords,
+        and permissions for the PDF document.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="owner-password">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the owner password for the PDF document. The owner password allows full access to the document,
+            including changing permissions.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="user-password">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the user password for the PDF document. The user password allows access to the document
+            according to the specified permissions.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="allow-print">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies whether printing the document is allowed.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="true"/>
+            <xs:enumeration value="false"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="allow-copy-content">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies whether copying content from the document is allowed.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="true"/>
+            <xs:enumeration value="false"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="allow-edit-content">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies whether editing the document content is allowed.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="true"/>
+            <xs:enumeration value="false"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="allow-edit-annotations">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies whether editing annotations in the document is allowed.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="true"/>
+            <xs:enumeration value="false"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

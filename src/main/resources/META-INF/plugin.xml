@@ -73,6 +73,7 @@
     <depends>com.intellij.modules.xml</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <standardResourceProvider implementation="org.intellij.lang.xslfo.schema.BundledSchemasProvider"/>
         <configurationType implementation="org.intellij.lang.xslfo.run.XslFoRunConfigType"/>
 
         <applicationConfigurable displayName="XSL-FO" groupId="language" id="settings.xslfo"

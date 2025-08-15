@@ -1,0 +1,655 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:fop="http://xmlgraphics.apache.org/fop/config"
+           targetNamespace="http://xmlgraphics.apache.org/fop/config"
+           elementFormDefault="qualified">
+
+  <!-- Root element -->
+  <xs:element name="fop" type="fop:FopType">
+    <xs:annotation>
+      <xs:documentation>
+        Root element for the FOP configuration file. This element contains all configuration settings for Apache FOP.
+        The version attribute is required and specifies the version of the configuration format.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <!-- Complex type for the root element -->
+  <xs:complexType name="FopType">
+    <xs:annotation>
+      <xs:documentation>
+        Defines the structure of the root element. Contains all configuration settings for Apache FOP.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <!-- Base URL for resolving relative URLs -->
+      <xs:element name="base" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Base URL for resolving relative URLs in the configuration file and in FO documents.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Font base directory -->
+      <xs:element name="font-base" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Base directory for resolving font URLs. This can be used to avoid repeating the same directory path for multiple fonts.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Source resolution in dpi -->
+      <xs:element name="source-resolution" type="xs:positiveInteger" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Source resolution in dpi (dots/pixels per inch) for determining the size of pixels in SVG and bitmap images. Default: 72dpi.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Target resolution in dpi -->
+      <xs:element name="target-resolution" type="xs:positiveInteger" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Target resolution in dpi (dots/pixels per inch) for specifying the target resolution for generated bitmaps. Default: 72dpi.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Default page settings -->
+      <xs:element name="default-page-settings" type="fop:DefaultPageSettingsType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Default page-height and page-width settings, used in case a value is specified as 'auto' in the FO document.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Prefer renderer setting -->
+      <xs:element name="prefer-renderer" type="xs:boolean" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether FOP should prefer the renderer over the output format when determining the output format.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Accessibility settings -->
+      <xs:element name="accessibility" type="fop:AccessibilityType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether accessibility features are enabled. When enabled, PDF files will include additional information for accessibility tools.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Renderers configuration -->
+      <xs:element name="renderers" type="fop:RenderersType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Configuration for the various output renderers (PDF, PS, AFP, etc.).
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Type for default page settings -->
+  <xs:complexType name="DefaultPageSettingsType">
+    <xs:annotation>
+      <xs:documentation>
+        Defines default page dimensions to be used when page-height or page-width is specified as 'auto' in the FO document.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="height" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          Default page height (e.g., "11.00in"). Used when page-height is specified as 'auto' in the FO document.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="width" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          Default page width (e.g., "8.50in"). Used when page-width is specified as 'auto' in the FO document.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for accessibility settings -->
+  <xs:complexType name="AccessibilityType">
+    <xs:annotation>
+      <xs:documentation>
+        Controls accessibility features in the generated output. When enabled, PDF files will include additional information for accessibility tools.
+        The content of this element should be a boolean value (true/false).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:boolean">
+        <xs:attribute name="keep-empty-tags" type="xs:boolean" use="optional">
+          <xs:annotation>
+            <xs:documentation>
+              Controls whether empty tags should be kept in the accessibility tree. Default is false.
+            </xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Type for renderers configuration -->
+  <xs:complexType name="RenderersType">
+    <xs:annotation>
+      <xs:documentation>
+        Contains configuration for the various output renderers (PDF, PS, AFP, etc.).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="renderer" type="fop:RendererType" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>
+            Configuration for a specific output renderer. The mime attribute specifies which renderer the configuration applies to.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Type for renderer configuration -->
+  <xs:complexType name="RendererType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for a specific output renderer. Different renderers support different configuration options.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <!-- PDF/UA mode for PDF renderer -->
+      <xs:element name="pdf-ua-mode" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the PDF/UA (Universal Accessibility) mode for the PDF renderer. Valid values include "PDF/UA-1".
+            When specified, the PDF renderer will create PDF files that conform to the PDF/UA standard.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Filter list for PDF renderer -->
+      <xs:element name="filterList" type="fop:FilterListType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            List of filters to apply to the PDF output. Common filters include "flate" (compression using zlib),
+            "ascii-85" (encodes binary data into printable ASCII characters), and "ascii-hex" (encodes binary data with hex representation).
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Font configuration -->
+      <xs:element name="fonts" type="fop:FontsType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Configuration for fonts used by the renderer. This includes font directories, embedded fonts, and font auto-detection.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- XML handler configuration -->
+      <xs:element name="xml-handler" type="fop:XmlHandlerType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Configuration for handling specific XML namespaces, such as SVG. This allows specifying additional options for XML handlers.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- AFP specific configuration -->
+      <xs:element name="images" type="fop:ImagesType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Configuration for image handling, particularly for the AFP renderer. Specifies the bit depth and type of images produced.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="renderer-resolution" type="xs:positiveInteger" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the resolution in dpi for the renderer. Particularly used by the AFP renderer.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="line-width-correction" type="xs:decimal" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Correction factor for line widths in the AFP renderer.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="resource-group-file" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the resource group file for the AFP renderer.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- SVG specific configuration -->
+      <xs:element name="format" type="fop:FormatType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the format type for the SVG renderer. Valid values include "paginated".
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="link" type="fop:LinkType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether links are enabled in the SVG output.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="strokeText" type="fop:StrokeTextType" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether text should be stroked rather than filled in the SVG output.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- PNG/TIFF specific configuration -->
+      <xs:element name="transparent-page-background" type="xs:boolean" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether the page background should be transparent in PNG and TIFF output.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="compression" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Specifies the compression method for TIFF output. Valid values include "CCITT T.6".
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+
+      <!-- Auto-rotate landscape for PS renderer -->
+      <xs:element name="auto-rotate-landscape" type="xs:boolean" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether landscape pages should be automatically rotated in PostScript output.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="mime" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The MIME type of the renderer. This attribute is used to identify which renderer the configuration applies to.
+          Common values include "application/pdf", "application/postscript", "application/x-afp", "image/svg+xml", etc.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for filter list -->
+  <xs:complexType name="FilterListType">
+    <xs:annotation>
+      <xs:documentation>
+        List of filters to apply to the PDF output. Filters can be used to compress or encode the PDF content.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="value" type="xs:string" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>
+            A filter to apply to the PDF output. Common values include:
+            - "flate": Provides compression using zlib (default is on)
+            - "ascii-85": Encodes binary data into printable ASCII characters (default off, provides about 4:5 expansion of data size)
+            - "ascii-hex": Encodes binary data with hex representation (default off, not recommended as it doubles the data size)
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Type for fonts configuration -->
+  <xs:complexType name="FontsType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for fonts used by the renderer. This includes font directories, embedded fonts, and font auto-detection.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <!-- Font directory -->
+      <xs:element name="directory" type="xs:string" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Directory where fonts are located. This can be an absolute path or a path relative to the base directory.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:choice>
+        <xs:sequence>
+          <xs:element name="font" type="fop:FontType" maxOccurs="unbounded">
+            <xs:annotation>
+              <xs:documentation>
+                Configuration for a specific font. This element is used to define fonts for most renderers.
+              </xs:documentation>
+            </xs:annotation>
+          </xs:element>
+        </xs:sequence>
+        <xs:sequence>
+          <xs:element name="afp-font" type="fop:AFPFontType" maxOccurs="unbounded">
+            <xs:annotation>
+              <xs:documentation>
+                Configuration for an AFP font. This element is used specifically for the AFP renderer.
+              </xs:documentation>
+            </xs:annotation>
+          </xs:element>
+        </xs:sequence>
+        <xs:element name="auto-detect">
+          <xs:annotation>
+            <xs:documentation>
+              Enables automatic detection of fonts in the specified font directory. When this element is present,
+              FOP will scan the font directory and automatically register all fonts it finds.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType/>
+        </xs:element>
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Type for font configuration -->
+  <xs:complexType name="FontType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for a specific font. This element is used to define fonts for most renderers.
+        It specifies the font file, kerning information, embedding options, and font triplets (logical names).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="font-triplet" type="fop:FontTripletType" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>
+            A font triplet defines a logical font name, style, and weight. Multiple font triplets can be associated with a single font.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="kerning" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          Controls whether kerning is enabled for this font. Valid values are "yes" and "no".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="embed-url" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          URL of the font file to embed. This can be an absolute path or a path relative to the font base directory.
+          If this attribute is not specified, the font will not be embedded in the output document.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="embedding-mode" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          Controls how the font is embedded in the output document. Valid values are:
+          - "subset": Only the used glyphs are embedded (default)
+          - "full": The entire font is embedded
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="subset"/>
+          <xs:enumeration value="full"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for AFP font configuration -->
+  <xs:complexType name="AFPFontType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for an AFP font. This element is used specifically for the AFP renderer.
+        AFP fonts can be raster fonts or outline fonts.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="afp-raster-font" type="fop:AFPRasterFontType" minOccurs="0" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>
+            Configuration for an AFP raster font. Raster fonts are bitmap representations of characters at specific sizes.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="font-triplet" type="fop:FontTripletType" minOccurs="0" maxOccurs="unbounded">
+        <xs:annotation>
+          <xs:documentation>
+            A font triplet defines a logical font name, style, and weight. Multiple font triplets can be associated with a single font.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The name of the AFP font.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="type" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The type of the AFP font. Valid values include "raster" and "CIDKeyed".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="codepage" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The code page of the AFP font, e.g., "T1V10500".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="encoding" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The encoding of the AFP font, e.g., "Cp500" or "UnicodeBigUnmarked".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="base-uri" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The base URI for resolving relative URIs for AFP font resources.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for AFP raster font configuration -->
+  <xs:complexType name="AFPRasterFontType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for an AFP raster font. Raster fonts are bitmap representations of characters at specific sizes.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="size" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The size of the AFP raster font in points, e.g., "10".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="characterset" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The character set of the AFP raster font, e.g., "C0N20000".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="base14-font" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The base-14 font to use for this AFP raster font, e.g., "TimesRoman", "Helvetica", "Courier".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for font triplet -->
+  <xs:complexType name="FontTripletType">
+    <xs:annotation>
+      <xs:documentation>
+        A font triplet defines a logical font name, style, and weight. Multiple font triplets can be associated with a single font.
+        Font triplets are used to map logical font names in FO documents to physical fonts.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="name" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The logical font name, e.g., "Arial", "Times", "Helvetica", "Courier", "sans-serif", "serif", "monospace".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="style" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The font style. Valid values are "normal", "italic", "oblique", and "backslant".
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="normal"/>
+          <xs:enumeration value="italic"/>
+          <xs:enumeration value="oblique"/>
+          <xs:enumeration value="backslant"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="weight" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The font weight. Valid values are "normal", "bold", or a numeric weight from 100 to 900 (normal = 400, bold = 700).
+        </xs:documentation>
+      </xs:annotation>
+      <xs:simpleType>
+        <xs:union>
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="normal"/>
+              <xs:enumeration value="bold"/>
+            </xs:restriction>
+          </xs:simpleType>
+          <xs:simpleType>
+            <xs:restriction base="xs:positiveInteger">
+              <xs:minInclusive value="100"/>
+              <xs:maxInclusive value="900"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:union>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for XML handler -->
+  <xs:complexType name="XmlHandlerType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for handling specific XML namespaces, such as SVG. This allows specifying additional options for XML handlers.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="stroke-text" type="xs:boolean" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            Controls whether text should be stroked rather than filled when processing XML content in the specified namespace.
+          </xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="namespace" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The XML namespace URI for which this handler configuration applies, e.g., "http://www.w3.org/2000/svg" for SVG.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for images configuration -->
+  <xs:complexType name="ImagesType">
+    <xs:annotation>
+      <xs:documentation>
+        Configuration for image handling, particularly for the AFP renderer. Specifies the bit depth and type of images produced.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="mode" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The image mode. For AFP renderer, valid values include "b+w" (black and white).
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="bits-per-pixel" type="xs:positiveInteger" use="optional">
+      <xs:annotation>
+        <xs:documentation>
+          The number of bits per pixel for images. For AFP renderer, a common value is 8.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for format configuration -->
+  <xs:complexType name="FormatType">
+    <xs:annotation>
+      <xs:documentation>
+        Specifies the format type for the SVG renderer.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="type" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          The format type. For SVG renderer, valid values include "paginated".
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for link configuration -->
+  <xs:complexType name="LinkType">
+    <xs:annotation>
+      <xs:documentation>
+        Controls whether links are enabled in the SVG output.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="value" type="xs:boolean" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Whether links are enabled (true) or disabled (false) in the SVG output.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+
+  <!-- Type for strokeText configuration -->
+  <xs:complexType name="StrokeTextType">
+    <xs:annotation>
+      <xs:documentation>
+        Controls whether text should be stroked rather than filled in the SVG output.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="value" type="xs:boolean" use="required">
+      <xs:annotation>
+        <xs:documentation>
+          Whether text should be stroked (true) or filled (false) in the SVG output.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+</xs:schema>

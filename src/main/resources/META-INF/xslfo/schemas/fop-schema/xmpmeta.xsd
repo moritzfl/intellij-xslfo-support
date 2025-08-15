@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="adobe:ns:meta/"
+           elementFormDefault="qualified">
+
+    <xs:annotation>
+        <xs:documentation>
+            XML Schema for Adobe XMP (Extensible Metadata Platform) metadata.
+            This schema defines the structure for XMP metadata containers used in various document formats.
+
+            For more information on XMP, see:
+            - Adobe XMP Specification: https://www.adobe.com/devnet/xmp.html
+        </xs:documentation>
+    </xs:annotation>
+
+    <xs:element name="xmpmeta">
+        <xs:annotation>
+            <xs:documentation>
+                The root element for XMP metadata. It serves as a container for RDF metadata.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:any namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#" processContents="lax"/>
+            </xs:sequence>
+            <xs:anyAttribute namespace="##other" processContents="lax"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>
