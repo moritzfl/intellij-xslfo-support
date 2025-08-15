@@ -189,6 +189,10 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase
         myXsltFile = VirtualFilePointerManager.getInstance().create(virtualFile, getProject(), null);
     }
 
+    public void setXsltFile(@NotNull VirtualFilePointer pointer) {
+        myXsltFile = pointer;
+    }
+
     @Nullable
     public String getXsltFile() {
         return myXsltFile != null ? myXsltFile.getPresentableUrl() : null;
@@ -211,6 +215,10 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase
 
     public void setXmlInputFile(VirtualFile xmlInputFile) {
         myXmlInputFile = VirtualFilePointerManager.getInstance().create(xmlInputFile, getProject(), null);
+    }
+
+    public void setXmlInputFile(@NotNull VirtualFilePointer pointer) {
+        myXmlInputFile = pointer;
     }
 
     @Nullable

@@ -71,7 +71,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
             private final XslFoRunConfiguration myXsltRunConfiguration = runConfiguration;
 
             @Override
-            public void processTerminated(final ProcessEvent event) {
+            public void processTerminated(final @NotNull ProcessEvent event) {
 
                 Runnable runnable = new Runnable() {
                     @Override
