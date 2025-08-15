@@ -41,7 +41,8 @@ class BundledFopCommandLineState extends CommandLineState {
         this.config = config;
         if (config.getSettings().useTemporaryFiles()) {
             try {
-                temporaryFile = File.createTempFile("fo_", ".pdf");
+                OutputFormat fmt = getEffectiveOutputFormat();
+                temporaryFile = File.createTempFile("fo_", fmt.extension());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -146,7 +147,8 @@ class BundledFopCommandLineState extends CommandLineState {
         FOUserAgent foUserAgent = fopFactory.newFOUserAgent();
 
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(outFile))) {
-            Fop fop = fopFactory.newFop(MimeConstants.MIME_PDF, foUserAgent, out);
+            OutputFormat fmt = getEffectiveOutputFormat();
+            Fop fop = fopFactory.newFop(fmt.mime(), foUserAgent, out);
 
             TransformerFactory factory = TransformerFactory.newInstance();
 
@@ -167,6 +169,15 @@ class BundledFopCommandLineState extends CommandLineState {
     private String getOutputFilePath() {
         String out = config.getSettings().outputFile();
         return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : out;
+    }
+
+    private OutputFormat getEffectiveOutputFormat() {
+        XslFoRunSettings s = config.getSettings();
+        if (s.usePluginOutputFormat()) {
+            XslFoSettings plugin = XslFoSettings.getInstance();
+            return plugin != null ? plugin.getDefaultOutputFormat() : OutputFormat.PDF;
+        }
+        return s.outputFormat();
     }
 
     /**

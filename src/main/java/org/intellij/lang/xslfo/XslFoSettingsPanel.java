@@ -15,6 +15,7 @@ import java.awt.event.ComponentListener;
  * @author Dmitry_Cherkas
  */
 public class XslFoSettingsPanel {
+    private javax.swing.JComboBox<org.intellij.lang.xslfo.run.OutputFormat> myDefaultOutputFormat;
     private JPanel myPanel;
     private TextFieldWithBrowseButton myFopInstallationDir;
     private TextFieldWithBrowseButton myUserConfigLocation;
@@ -26,6 +27,13 @@ public class XslFoSettingsPanel {
     private JLabel myBundledFopVersionLabel;
 
     public XslFoSettingsPanel() {
+            // populate output format combo
+            if (myDefaultOutputFormat != null) {
+                myDefaultOutputFormat.removeAllItems();
+                for (org.intellij.lang.xslfo.run.OutputFormat f : org.intellij.lang.xslfo.run.OutputFormat.values()) {
+                    myDefaultOutputFormat.addItem(f);
+                }
+            }
         // Replace deprecated addBrowseFolderListener with explicit chooser actions
         myFopInstallationDir.addActionListener(e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(
                 FileChooserDescriptorFactory.createSingleFolderDescriptor(), null, null, file -> {
@@ -100,6 +108,17 @@ public class XslFoSettingsPanel {
 
     public boolean isUseBundledFopSelected() {
         return myUseBundledFopRadio.isSelected();
+    }
+
+    public org.intellij.lang.xslfo.run.OutputFormat getDefaultOutputFormat() {
+        Object sel = myDefaultOutputFormat != null ? myDefaultOutputFormat.getSelectedItem() : null;
+        return sel instanceof org.intellij.lang.xslfo.run.OutputFormat ? (org.intellij.lang.xslfo.run.OutputFormat) sel : org.intellij.lang.xslfo.run.OutputFormat.PDF;
+    }
+
+    public void setDefaultOutputFormat(org.intellij.lang.xslfo.run.OutputFormat fmt) {
+        if (myDefaultOutputFormat != null) {
+            myDefaultOutputFormat.setSelectedItem(fmt == null ? org.intellij.lang.xslfo.run.OutputFormat.PDF : fmt);
+        }
     }
 
     public void setUseBundledFopSelected(boolean useBundled) {

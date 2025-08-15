@@ -40,7 +40,7 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
 
     private String mySuggestedName;
 
-    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, ExecutionMode.PLUGIN, null, SettingsFileMode.PLUGIN, null);
+    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, ExecutionMode.PLUGIN, null, SettingsFileMode.PLUGIN, null, true, org.intellij.lang.xslfo.run.OutputFormat.PDF);
 
     public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
         super(project, factory, NAME);
@@ -195,8 +195,23 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
         if (configPathAttr != null && !configPathAttr.isEmpty()) {
             configFilePath = configPathAttr;
         }
+        // Output format
+        boolean usePluginOutputFormat = true;
+        String usePluginFormatAttr = element.getAttributeValue("usePluginOutputFormat");
+        if (usePluginFormatAttr != null) {
+            usePluginOutputFormat = Boolean.parseBoolean(usePluginFormatAttr);
+        }
+        OutputFormat outputFormat = OutputFormat.PDF;
+        String outputFormatAttr = element.getAttributeValue("outputFormat");
+        if (outputFormatAttr != null && !outputFormatAttr.isEmpty()) {
+            try {
+                outputFormat = OutputFormat.valueOf(outputFormatAttr);
+            } catch (IllegalArgumentException ignore) {
+                outputFormat = OutputFormat.PDF;
+            }
+        }
 
-        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, executionMode, fopDirOverride, configMode, configFilePath);
+        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, executionMode, fopDirOverride, configMode, configFilePath, usePluginOutputFormat, outputFormat);
     }
 
     @Override
@@ -228,6 +243,9 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
         if (settings.configMode() == SettingsFileMode.FILE && settings.configFilePath() != null) {
             element.setAttribute("configFilePath", settings.configFilePath());
         }
+        // Output format persistence
+        element.setAttribute("usePluginOutputFormat", Boolean.toString(settings.usePluginOutputFormat()));
+        element.setAttribute("outputFormat", settings.outputFormat().name());
     }
 
     @Override

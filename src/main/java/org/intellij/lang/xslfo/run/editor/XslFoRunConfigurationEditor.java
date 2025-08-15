@@ -35,6 +35,11 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     private JCheckBox myOpenOutputFile;
     private JCheckBox myUseTemporaryFiles;
 
+    // Output format override
+    private JRadioButton myUsePluginOutputFormatRadio;
+    private JRadioButton myUseCustomOutputFormatRadio;
+    private JComboBox<org.intellij.lang.xslfo.run.OutputFormat> myOutputFormatCombo;
+
     // FOP execution selection (plugin/bundled/external)
     private JRadioButton myUsePluginExecutionRadio;
     private JRadioButton myUseBundledFopRadio;
@@ -61,6 +66,21 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         }
         if (myUseTemporaryFiles != null) {
             myUseTemporaryFiles.addActionListener(e -> updateComponentsState());
+        }
+
+        // Output format UI wiring
+        if (myOutputFormatCombo != null) {
+            myOutputFormatCombo.removeAllItems();
+            for (org.intellij.lang.xslfo.run.OutputFormat f : org.intellij.lang.xslfo.run.OutputFormat.values()) {
+                myOutputFormatCombo.addItem(f);
+            }
+        }
+        if (myUsePluginOutputFormatRadio != null && myUseCustomOutputFormatRadio != null) {
+            ButtonGroup outGroup = new ButtonGroup();
+            outGroup.add(myUsePluginOutputFormatRadio);
+            outGroup.add(myUseCustomOutputFormatRadio);
+            myUsePluginOutputFormatRadio.addActionListener(e -> updateComponentsState());
+            myUseCustomOutputFormatRadio.addActionListener(e -> updateComponentsState());
         }
 
         // FOP settings UI wiring
@@ -149,6 +169,7 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         if (myUseEmptyConfig != null) myUseEmptyConfig.addActionListener(e -> updateComponentsState());
         if (myUseConfigFile != null) myUseConfigFile.addActionListener(e -> updateComponentsState());
 
+        refreshPluginOutputFormatLabel();
         updateComponentsState();
     }
 
@@ -167,6 +188,25 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         if (myOutputFile != null) myOutputFile.setText(settings.outputFile());
         if (myOpenOutputFile != null) myOpenOutputFile.setSelected(settings.openOutputFile());
         if (myUseTemporaryFiles != null) myUseTemporaryFiles.setSelected(settings.useTemporaryFiles());
+
+        // Output format
+        if (myUsePluginOutputFormatRadio != null && myOutputFormatCombo != null && myUseCustomOutputFormatRadio != null) {
+            if (settings.usePluginOutputFormat()) {
+                myUsePluginOutputFormatRadio.setSelected(true);
+                myUseCustomOutputFormatRadio.setSelected(false);
+            } else {
+                myUsePluginOutputFormatRadio.setSelected(false);
+                myUseCustomOutputFormatRadio.setSelected(true);
+            }
+            if (settings.outputFormat() != null) {
+                myOutputFormatCombo.setSelectedItem(settings.outputFormat());
+            } else {
+                myOutputFormatCombo.setSelectedItem(org.intellij.lang.xslfo.run.OutputFormat.PDF);
+            }
+        }
+
+        // Refresh label to reflect plugin default output format
+        refreshPluginOutputFormatLabel();
 
         // FOP execution selection
         if (myUsePluginExecutionRadio != null && myUseBundledFopRadio != null && myUseBinaryFopRadio != null) {
@@ -246,6 +286,16 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
                 )
                 .withFopInstallationDirOverride(myFopInstallationDir != null ? myFopInstallationDir.getText() : null);
 
+        // Output format selection
+        if (myUsePluginOutputFormatRadio != null && myUsePluginOutputFormatRadio.isSelected()) {
+            settings = settings.withUsePluginOutputFormat(true);
+        } else if (myUseCustomOutputFormatRadio != null && myUseCustomOutputFormatRadio.isSelected()) {
+            settings = settings.withUsePluginOutputFormat(false)
+                    .withOutputFormat(myOutputFormatCombo != null && myOutputFormatCombo.getSelectedItem() instanceof org.intellij.lang.xslfo.run.OutputFormat
+                            ? (org.intellij.lang.xslfo.run.OutputFormat) myOutputFormatCombo.getSelectedItem()
+                            : org.intellij.lang.xslfo.run.OutputFormat.PDF);
+        }
+
         // Config source
         if (myUsePluginConfig != null && myUsePluginConfig.isSelected()) {
             settings = settings.withConfigMode(org.intellij.lang.xslfo.run.SettingsFileMode.PLUGIN)
@@ -265,6 +315,15 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     @Override
     protected JComponent createEditor() {
         return myComponent;
+    }
+
+    private void refreshPluginOutputFormatLabel() {
+        if (myUsePluginOutputFormatRadio != null) {
+            org.intellij.lang.xslfo.XslFoSettings plugin = org.intellij.lang.xslfo.XslFoSettings.getInstance();
+            org.intellij.lang.xslfo.run.OutputFormat fmt = plugin != null ? plugin.getDefaultOutputFormat() : org.intellij.lang.xslfo.run.OutputFormat.PDF;
+            String fmtText = fmt != null ? fmt.name() : "PDF";
+            myUsePluginOutputFormatRadio.setText("Use output format from plugin settings (" + fmtText + ")");
+        }
     }
 
     private void updateComponentsState() {
@@ -312,5 +371,11 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         // Config source controls
         boolean fileMode = myUseConfigFile != null && myUseConfigFile.isSelected();
         if (myUserConfigLocation != null) myUserConfigLocation.setEnabled(fileMode);
+
+        // Output format controls
+        boolean customOut = myUseCustomOutputFormatRadio != null && myUseCustomOutputFormatRadio.isSelected();
+        if (myOutputFormatCombo != null) myOutputFormatCombo.setEnabled(customOut);
+        // Keep the plugin-format label up to date
+        refreshPluginOutputFormatLabel();
     }
 }

@@ -59,7 +59,8 @@ public class XslFoConfigurable implements SearchableConfigurable, Configurable.N
         return mySettingsPanel == null
                 || !Objects.equal(mySettings.getFopInstallationDir(), mySettingsPanel.getFopInstallationDir())
                 || !Objects.equal(mySettings.getUserConfigLocation(), mySettingsPanel.getUserConfigLocation())
-                || mySettings.isUseBundledFop() != mySettingsPanel.isUseBundledFopSelected();
+                || mySettings.isUseBundledFop() != mySettingsPanel.isUseBundledFopSelected()
+                                || mySettings.getDefaultOutputFormat() != mySettingsPanel.getDefaultOutputFormat();
     }
 
     @Override
@@ -68,6 +69,7 @@ public class XslFoConfigurable implements SearchableConfigurable, Configurable.N
             mySettings.setFopInstallationDir(mySettingsPanel.getFopInstallationDir());
             mySettings.setUserConfigLocation(mySettingsPanel.getUserConfigLocation());
             mySettings.setUseBundledFop(mySettingsPanel.isUseBundledFopSelected());
+            mySettings.setDefaultOutputFormat(mySettingsPanel.getDefaultOutputFormat());
         }
     }
 
@@ -77,6 +79,7 @@ public class XslFoConfigurable implements SearchableConfigurable, Configurable.N
             mySettingsPanel.setFopInstallationDir(mySettings.getFopInstallationDir());
             mySettingsPanel.setUserConfigLocation(mySettings.getUserConfigLocation());
             mySettingsPanel.setUseBundledFopSelected(mySettings.isUseBundledFop());
+            mySettingsPanel.setDefaultOutputFormat(mySettings.getDefaultOutputFormat());
         }
     }
 

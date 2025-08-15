@@ -9,7 +9,6 @@ import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.process.ProcessTerminatedListener;
-import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
@@ -42,7 +41,8 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         this.myXslFoRunConfiguration = xslFoRunConfiguration;
         if (myXslFoRunConfiguration.getSettings().useTemporaryFiles()) {
             try {
-                temporaryFile = File.createTempFile("fo_", ".pdf");
+                OutputFormat fmt = getEffectiveOutputFormat();
+                temporaryFile = File.createTempFile("fo_", fmt.extension());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -152,8 +152,9 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         }
         commandLine.addParameters("-xsl", xslt);
 
-        // OUTPUT FORMAT (TODO: add other formats support)
-        commandLine.addParameter("-pdf");
+        // OUTPUT FORMAT (use effective format)
+        OutputFormat fmt = getEffectiveOutputFormat();
+        commandLine.addParameter(fmt.cliSwitch());
 
         // OUT FILE
         commandLine.addParameter(getOutputFilePath());
@@ -163,5 +164,14 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     private String getOutputFilePath() {
         String out = myXslFoRunConfiguration.getSettings().outputFile();
         return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : out;
+    }
+
+    private OutputFormat getEffectiveOutputFormat() {
+        XslFoRunSettings s = myXslFoRunConfiguration.getSettings();
+        if (s.usePluginOutputFormat()) {
+            XslFoSettings plugin = XslFoSettings.getInstance();
+            return plugin != null ? plugin.getDefaultOutputFormat() : OutputFormat.PDF;
+        }
+        return s.outputFormat();
     }
 }
