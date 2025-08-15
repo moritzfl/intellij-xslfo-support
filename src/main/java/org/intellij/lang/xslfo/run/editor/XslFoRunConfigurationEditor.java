@@ -35,7 +35,8 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     private JCheckBox myOpenOutputFile;
     private JCheckBox myUseTemporaryFiles;
 
-    // FOP execution selection (bundled vs binary)
+    // FOP execution selection (plugin/bundled/external)
+    private JRadioButton myUsePluginExecutionRadio;
     private JRadioButton myUseBundledFopRadio;
     private JRadioButton myUseBinaryFopRadio;
     private JLabel myExternalFopInfoLabel;
@@ -105,6 +106,7 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         }
         if (myUseBundledFopRadio != null && myUseBinaryFopRadio != null) {
             ButtonGroup group = new ButtonGroup();
+            if (myUsePluginExecutionRadio != null) group.add(myUsePluginExecutionRadio);
             group.add(myUseBundledFopRadio);
             group.add(myUseBinaryFopRadio);
 
@@ -133,6 +135,9 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
             cfgGroup.add(myUsePluginConfig);
             cfgGroup.add(myUseEmptyConfig);
             cfgGroup.add(myUseConfigFile);
+        }
+        if (myUsePluginExecutionRadio != null) {
+            myUsePluginExecutionRadio.addActionListener(e -> updateComponentsState());
         }
         if (myUseBundledFopRadio != null) {
             myUseBundledFopRadio.addActionListener(e -> updateComponentsState());
@@ -164,8 +169,25 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         if (myUseTemporaryFiles != null) myUseTemporaryFiles.setSelected(settings.useTemporaryFiles());
 
         // FOP execution selection
-        if (myUseBundledFopRadio != null) myUseBundledFopRadio.setSelected(settings.useBundledFopOverride());
-        if (myUseBinaryFopRadio != null) myUseBinaryFopRadio.setSelected(!settings.useBundledFopOverride());
+        if (myUsePluginExecutionRadio != null && myUseBundledFopRadio != null && myUseBinaryFopRadio != null) {
+            switch (settings.executionMode()) {
+                case PLUGIN -> {
+                    myUsePluginExecutionRadio.setSelected(true);
+                    myUseBundledFopRadio.setSelected(false);
+                    myUseBinaryFopRadio.setSelected(false);
+                }
+                case BUNDLED -> {
+                    myUsePluginExecutionRadio.setSelected(false);
+                    myUseBundledFopRadio.setSelected(true);
+                    myUseBinaryFopRadio.setSelected(false);
+                }
+                case EXTERNAL -> {
+                    myUsePluginExecutionRadio.setSelected(false);
+                    myUseBundledFopRadio.setSelected(false);
+                    myUseBinaryFopRadio.setSelected(true);
+                }
+            }
+        }
         if (myFopInstallationDir != null) myFopInstallationDir.setText(settings.fopInstallationDirOverride());
 
         // FOP configuration source
@@ -218,7 +240,10 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
                 .withOutputFile(myOutputFile.getText())
                 .withOpenOutputFile(myOpenOutputFile.isSelected())
                 .withUseTemporaryFiles(myUseTemporaryFiles.isSelected())
-                .withUseBundledFopOverride(myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected())
+                .withExecutionMode(
+                        myUsePluginExecutionRadio != null && myUsePluginExecutionRadio.isSelected() ? org.intellij.lang.xslfo.run.ExecutionMode.PLUGIN :
+                                (myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected() ? org.intellij.lang.xslfo.run.ExecutionMode.BUNDLED : org.intellij.lang.xslfo.run.ExecutionMode.EXTERNAL)
+                )
                 .withFopInstallationDirOverride(myFopInstallationDir != null ? myFopInstallationDir.getText() : null);
 
         // Config source
@@ -253,19 +278,32 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
             }
         }
         // Execution controls
+        boolean pluginSelected = myUsePluginExecutionRadio != null && myUsePluginExecutionRadio.isSelected();
+        boolean bundledSelected = myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected();
         boolean externalSelected = myUseBinaryFopRadio != null && myUseBinaryFopRadio.isSelected();
-        String dirToUse = myFopInstallationDir != null ? myFopInstallationDir.getText() : null;
         if (myFopInstallationDir != null) myFopInstallationDir.setEnabled(externalSelected);
         if (myExternalFopInfoLabel != null) {
             if (externalSelected) {
-                String msg;
-                if (dirToUse == null || dirToUse.trim().isEmpty()) {
-                    msg = "Using FOP from system PATH (command: 'fop')";
-                } else {
-                    msg = "Using FOP from installation directory: " + dirToUse.trim();
-                }
+                String dirToUse = myFopInstallationDir != null ? myFopInstallationDir.getText() : null;
+                String msg = (dirToUse == null || dirToUse.trim().isEmpty())
+                        ? "Using FOP from system PATH (command: 'fop')"
+                        : ("Using FOP from installation directory: " + dirToUse.trim());
                 myExternalFopInfoLabel.setText(msg);
                 myExternalFopInfoLabel.setVisible(true);
+            } else if (pluginSelected) {
+                org.intellij.lang.xslfo.XslFoSettings plugin = org.intellij.lang.xslfo.XslFoSettings.getInstance();
+                boolean pluginUsesExternal = plugin != null && !plugin.isUseBundledFop();
+                if (pluginUsesExternal) {
+                    String dirToUse = plugin.getFopInstallationDir();
+                    String msg = (dirToUse == null || dirToUse.trim().isEmpty())
+                            ? "Using FOP from system PATH (command: 'fop')"
+                            : ("Using FOP from installation directory: " + dirToUse.trim());
+                    myExternalFopInfoLabel.setText(msg);
+                    myExternalFopInfoLabel.setVisible(true);
+                } else {
+                    myExternalFopInfoLabel.setText("");
+                    myExternalFopInfoLabel.setVisible(false);
+                }
             } else {
                 myExternalFopInfoLabel.setText("");
                 myExternalFopInfoLabel.setVisible(false);

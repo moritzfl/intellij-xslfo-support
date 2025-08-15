@@ -21,28 +21,44 @@ public class XslFoUtils {
         if (base == null) {
             return null;
         }
-        String executableName = (Platform.current() == Platform.WINDOWS) ? "fop.bat" : "fop";
 
-        // If the path points directly to the executable (rare, but be tolerant)
-        if (!base.isDirectory() && executableName.equalsIgnoreCase(base.getName())) {
-            return base;
+        // Determine possible executable names depending on platform
+        String[] candidates;
+        if (Platform.current() == Platform.WINDOWS) {
+            candidates = new String[]{"fop.bat", "fop.cmd"};
+        } else {
+            candidates = new String[]{"fop"};
+        }
+
+        // If the path points directly to the executable (support either extension)
+        if (!base.isDirectory()) {
+            for (String name : candidates) {
+                if (name.equalsIgnoreCase(base.getName())) {
+                    return base;
+                }
+            }
+            return null;
         }
 
         // Try <installDir>/bin/<exe>
-        if (base.isDirectory()) {
-            VirtualFile bin = base.findChild("bin");
-            if (bin != null) {
-                VirtualFile exe = bin.findChild(executableName);
+        VirtualFile bin = base.findChild("bin");
+        if (bin != null) {
+            for (String name : candidates) {
+                VirtualFile exe = bin.findChild(name);
                 if (exe != null) {
                     return exe;
                 }
             }
-            // Try <installDir>/<exe>
-            VirtualFile exe = base.findChild(executableName);
+        }
+
+        // Try <installDir>/<exe>
+        for (String name : candidates) {
+            VirtualFile exe = base.findChild(name);
             if (exe != null) {
                 return exe;
             }
         }
+
         return null;
     }
 

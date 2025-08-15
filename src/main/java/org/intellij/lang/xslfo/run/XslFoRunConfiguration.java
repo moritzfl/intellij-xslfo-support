@@ -33,14 +33,14 @@ import java.io.File;
 /**
  * @author Dmitry_Cherkas
  */
-public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSettings>
+public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSettings>
     implements RunConfigurationWithSuppressedDefaultDebugAction, RunProfileWithCompileBeforeLaunchOption {
 
     private static final String NAME = "XSL-FO Configuration";
 
     private String mySuggestedName;
 
-    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, true, null, SettingsFileMode.PLUGIN, null);
+    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, ExecutionMode.PLUGIN, null, SettingsFileMode.PLUGIN, null);
 
     public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
         super(project, factory, NAME);
@@ -82,7 +82,11 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
     }
 
     @NotNull
-    protected abstract RunProfileState createState(@NotNull ExecutionEnvironment environment) throws ExecutionException;
+    protected RunProfileState createState(@NotNull ExecutionEnvironment environment) throws ExecutionException {
+        boolean useBundled = FopExecutionHelper.useBundledFop(this);
+        return useBundled ? new BundledFopCommandLineState(this, environment)
+                          : new BinaryXslFoCommandLineState(this, environment);
+    }
 
     @Override
     public String suggestedName() {
@@ -116,7 +120,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         String outPath = null;
         boolean openOut = false;
         boolean useTemp = false;
-        boolean useBundledOverride = true;
+        ExecutionMode executionMode = ExecutionMode.PLUGIN;
         String fopDirOverride = null;
         // New settings: config mode and path
         SettingsFileMode configMode = SettingsFileMode.PLUGIN;
@@ -146,9 +150,20 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
         if (useTempAttr != null) {
             useTemp = Boolean.parseBoolean(useTempAttr);
         }
-        String useBundledOverrideAttr = element.getAttributeValue("useBundledFopOverride");
-        if (useBundledOverrideAttr != null) {
-            useBundledOverride = Boolean.parseBoolean(useBundledOverrideAttr);
+        String executionModeAttr = element.getAttributeValue("executionMode");
+        if (executionModeAttr != null) {
+            try {
+                executionMode = ExecutionMode.valueOf(executionModeAttr);
+            } catch (IllegalArgumentException ignore) {
+                executionMode = ExecutionMode.PLUGIN;
+            }
+        } else {
+            // Legacy fallback: map useBundledFopOverride boolean to BUNDLED/EXTERNAL if present
+            String legacyBundledAttr = element.getAttributeValue("useBundledFopOverride");
+            if (legacyBundledAttr != null) {
+                boolean legacyBundled = Boolean.parseBoolean(legacyBundledAttr);
+                executionMode = legacyBundled ? ExecutionMode.BUNDLED : ExecutionMode.EXTERNAL;
+            }
         }
         String fopDirAttr = element.getAttributeValue("fopInstallationDirOverride");
         if (fopDirAttr != null && !fopDirAttr.isEmpty()) {
@@ -181,7 +196,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
             configFilePath = configPathAttr;
         }
 
-        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, useBundledOverride, fopDirOverride, configMode, configFilePath);
+        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, executionMode, fopDirOverride, configMode, configFilePath);
     }
 
     @Override
@@ -205,7 +220,7 @@ public abstract class XslFoRunConfiguration extends LocatableConfigurationBase<X
             element.addContent(e);
         }
         element.setAttribute("useTemporaryFiles", Boolean.toString(settings.useTemporaryFiles()));
-        element.setAttribute("useBundledFopOverride", Boolean.toString(settings.useBundledFopOverride()));
+        element.setAttribute("executionMode", settings.executionMode().name());
         if (settings.fopInstallationDirOverride() != null) {
             element.setAttribute("fopInstallationDirOverride", settings.fopInstallationDirOverride());
         }

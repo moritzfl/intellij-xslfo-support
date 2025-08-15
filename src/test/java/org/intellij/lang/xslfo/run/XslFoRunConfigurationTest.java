@@ -8,14 +8,14 @@ import static org.intellij.lang.xslfo.run.XslFoRunExecutorTestHelper.setXmlPoint
 import static org.intellij.lang.xslfo.run.XslFoRunExecutorTestHelper.setXsltPointer;
 import static org.junit.Assert.*;
 
-public class BundledFopRunConfigurationTest {
+public class XslFoRunConfigurationTest {
 
 
     @Test
     public void checkConfigurationValidatesMissingInputs() {
         Project project = XslFoRunExecutorTestHelper.createTestProject();
         XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
-        BundledFopRunConfiguration config = new BundledFopRunConfiguration(project, factory);
+        XslFoRunConfiguration config = new XslFoRunConfiguration(project, factory);
 
         try {
             config.checkConfiguration();
@@ -44,7 +44,7 @@ public class BundledFopRunConfigurationTest {
     public void writeAndReadExternal_withoutFilePointers_roundtripOutputSettings() {
         Project project = XslFoRunExecutorTestHelper.createTestProject();
         XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
-        BundledFopRunConfiguration config = new BundledFopRunConfiguration(project, factory);
+        XslFoRunConfiguration config = new XslFoRunConfiguration(project, factory);
 
         config.setOutputFile("/tmp/out.pdf");
         config.setOpenOutputFile(true);
@@ -60,7 +60,7 @@ public class BundledFopRunConfigurationTest {
         assertEquals("true", outputEl.getAttributeValue("openOutputFile"));
         assertEquals("true", element.getAttributeValue("useTemporaryFiles"));
 
-        BundledFopRunConfiguration config2 = new BundledFopRunConfiguration(project, factory);
+        XslFoRunConfiguration config2 = new XslFoRunConfiguration(project, factory);
         config2.readExternal(element);
 
         assertEquals("/tmp/out.pdf", config2.getSettings().outputFile());

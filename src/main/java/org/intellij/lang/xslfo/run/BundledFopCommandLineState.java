@@ -2,7 +2,10 @@ package org.intellij.lang.xslfo.run;
 
 import com.intellij.execution.configurations.CommandLineState;
 import com.intellij.execution.process.ProcessHandler;
+import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -51,21 +54,33 @@ class BundledFopCommandLineState extends CommandLineState {
     @Override
     protected ProcessHandler startProcess() {
         InProcessFopProcessHandler handler = new InProcessFopProcessHandler();
+
         // Run transformation on a background thread to avoid blocking UI
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.submit(() -> {
             int exitCode = 0;
             try {
+                // Show a popup notification indicating which FOP is used (bundled)
+                NotificationGroupManager.getInstance()
+                    .getNotificationGroup("XSL-FO")
+                    .createNotification("Using FOP (bundled, in-process)", NotificationType.INFORMATION)
+                    .notify(config.getProject());
                 runFop();
             } catch (Throwable t) {
                 exitCode = 1;
-                handler.notifyTextAvailable("FOP execution failed: " + t.getMessage() + "\n", com.intellij.execution.process.ProcessOutputTypes.STDERR);
+                // Log full stack trace to console instead of letting it bubble to the IDE
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                t.printStackTrace(pw);
+                pw.flush();
+                handler.notifyTextAvailable(sw.toString(), ProcessOutputTypes.STDERR);
             } finally {
                 int finalExitCode = exitCode;
                 SwingUtilities.invokeLater(() -> afterProcessTerminated(handler, finalExitCode));
                 executor.shutdown();
             }
         });
+
         handler.startNotify();
         return handler;
     }
@@ -116,7 +131,6 @@ class BundledFopCommandLineState extends CommandLineState {
         String userConfig;
         switch (config.getSettings().configMode()) {
             case PLUGIN -> userConfig = pluginSettings != null ? pluginSettings.getUserConfigLocation() : null;
-            case EMPTY -> userConfig = null;
             case FILE -> userConfig = config.getSettings().configFilePath();
             default -> userConfig = null;
         }

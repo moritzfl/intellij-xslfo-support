@@ -79,6 +79,9 @@
                                  instance="org.intellij.lang.xslfo.XslFoConfigurable"/>
         <applicationService serviceImplementation="org.intellij.lang.xslfo.XslFoSettings"/>
         <runConfigurationProducer implementation="org.intellij.lang.xslfo.run.XslFoConfigurationProducer"/>
+
+        <!-- Notification group for user-facing popups -->
+        <notificationGroup id="XSL-FO" displayType="BALLOON" isLogByDefault="false"/>
     </extensions>
 
 </idea-plugin>

@@ -9,7 +9,10 @@ import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.process.ProcessTerminatedListener;
+import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.notification.NotificationGroupManager;
+import com.intellij.notification.NotificationType;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.vfs.VfsUtilCore;
@@ -51,12 +54,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     @NotNull
     @Override
     protected ProcessHandler startProcess() throws ExecutionException {
-        // Decide bundled vs binary based solely on per-run selection
-        boolean useBundled = myXslFoRunConfiguration.getSettings().useBundledFopOverride();
-        if (useBundled) {
-            return new BundledFopCommandLineState(myXslFoRunConfiguration, getEnvironment()).startProcess();
-        }
-
+        // This state is dedicated to external (binary) FOP execution; no switching to bundled here.
         final GeneralCommandLine commandLine = buildCommandLine();
 
         final OSProcessHandler processHandler = new OSProcessHandler(commandLine.createProcess(), commandLine.getCommandLineString()) {
@@ -65,6 +63,15 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
                 return commandLine.getCharset();
             }
         };
+        // Show a popup notification indicating which FOP is used (external)
+        String exePath = commandLine.getExePath();
+        processHandler.startNotify();
+        String msg = "Using FOP (external): " + ("fop".equalsIgnoreCase(exePath) ? "fop (from PATH)" : exePath);
+        NotificationGroupManager.getInstance()
+                .getNotificationGroup("XSL-FO")
+                .createNotification(msg, NotificationType.INFORMATION)
+                .notify(myXslFoRunConfiguration.getProject());
+
         ProcessTerminatedListener.attach(processHandler);
         final XslFoRunConfiguration runConfiguration = myXslFoRunConfiguration;
         processHandler.addProcessListener(new ProcessAdapter() {
@@ -72,7 +79,6 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
 
             @Override
             public void processTerminated(final @NotNull ProcessEvent event) {
-
                 Runnable runnable = () -> {
                     Runnable runnable1 = () -> {
                         if (event.getExitCode() == 0) {
@@ -101,7 +107,13 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
 
     protected GeneralCommandLine buildCommandLine() throws ExecutionException {
         GeneralCommandLine commandLine = new GeneralCommandLine();
-        String installDir = myXslFoRunConfiguration.getSettings().fopInstallationDirOverride();
+        String installDir;
+        ExecutionMode mode = myXslFoRunConfiguration.getSettings().executionMode();
+        if (mode == ExecutionMode.PLUGIN) {
+            installDir = mySettings != null ? mySettings.getFopInstallationDir() : null;
+        } else {
+            installDir = myXslFoRunConfiguration.getSettings().fopInstallationDirOverride();
+        }
         VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(installDir);
         if (fopExecutablePath != null) {
             commandLine.setExePath(fopExecutablePath.getPath());

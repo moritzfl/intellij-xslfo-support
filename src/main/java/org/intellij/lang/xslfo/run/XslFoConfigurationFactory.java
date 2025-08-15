@@ -18,13 +18,8 @@ public class XslFoConfigurationFactory extends ConfigurationFactory {
 
     @Override
     public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project) {
-        org.intellij.lang.xslfo.XslFoSettings settings = org.intellij.lang.xslfo.XslFoSettings.getInstance();
-        boolean useBundled = settings == null || settings.isUseBundledFop();
-        if (useBundled) {
-            return new BundledFopRunConfiguration(project, this);
-        } else {
-            return new BinaryXslFoRunConfiguration(project, this);
-        }
+        // Single run configuration type; actual state selection happens in XslFoRunConfiguration.createState
+        return new XslFoRunConfiguration(project, this);
     }
 
     @Override
