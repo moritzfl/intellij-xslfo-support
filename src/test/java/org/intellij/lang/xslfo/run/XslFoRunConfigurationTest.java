@@ -10,7 +10,6 @@ import static org.junit.Assert.*;
 
 public class XslFoRunConfigurationTest {
 
-
     @Test
     public void checkConfigurationValidatesMissingInputs() {
         Project project = XslFoRunExecutorTestHelper.createTestProject();
@@ -33,10 +32,50 @@ public class XslFoRunConfigurationTest {
         }
 
         setXmlPointer(config);
+        config.setUseTemporaryFiles(true); // when using temp files, output path can be omitted
         try {
             config.checkConfiguration();
         } catch (Exception e) {
-            fail("checkConfiguration should not throw when both inputs are set, but was: " + e);
+            fail("checkConfiguration should not throw when both inputs are set and using temp files, but was: " + e);
+        }
+    }
+
+    @Test
+    public void checkConfiguration_requiresOutputPath_whenNotUsingTempFile() {
+        Project project = XslFoRunExecutorTestHelper.createTestProject();
+        XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
+        XslFoRunConfiguration config = new XslFoRunConfiguration(project, factory);
+
+        // Provide required inputs to reach the output path validation
+        setXsltPointer(config);
+        setXmlPointer(config);
+        config.setUseTemporaryFiles(false);
+        config.setOutputFile(null); // explicit: no output path provided
+
+        try {
+            config.checkConfiguration();
+            fail("Expected RuntimeConfigurationError for missing output path when not using temp files");
+        } catch (Exception ex) {
+            assertTrue("Expected RuntimeConfigurationError", ex instanceof com.intellij.execution.configurations.RuntimeConfigurationError);
+            assertEquals("'Save to file' path must not be empty when not writing to a temporary file", ex.getMessage());
+        }
+
+        // Also validate that whitespace-only output triggers the same error
+        config.setOutputFile("   ");
+        try {
+            config.checkConfiguration();
+            fail("Expected RuntimeConfigurationError for blank output path when not using temp files");
+        } catch (Exception ex) {
+            assertTrue(ex instanceof com.intellij.execution.configurations.RuntimeConfigurationError);
+            assertEquals("'Save to file' path must not be empty when not writing to a temporary file", ex.getMessage());
+        }
+
+        // And that providing a value passes
+        config.setOutputFile("/tmp/out.pdf");
+        try {
+            config.checkConfiguration();
+        } catch (Exception e) {
+            fail("Did not expect exception when output path is provided: " + e);
         }
     }
 

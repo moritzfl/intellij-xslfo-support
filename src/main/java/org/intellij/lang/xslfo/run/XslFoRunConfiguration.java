@@ -63,6 +63,13 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
         if (xml == null || xml.isEmpty()) {
             throw new RuntimeConfigurationError("No XML input file selected");
         }
+        // If temporary file is not selected, the 'Save to file' path must be provided (used for final destination)
+        if (!settings.useTemporaryFiles()) {
+            String out = settings.outputFile();
+            if (out == null || out.trim().isEmpty()) {
+                throw new RuntimeConfigurationError("'Save to file' path must not be empty when not writing to a temporary file");
+            }
+        }
     }
 
     @NotNull
