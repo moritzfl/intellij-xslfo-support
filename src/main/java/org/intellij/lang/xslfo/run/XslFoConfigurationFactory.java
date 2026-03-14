@@ -8,28 +8,28 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * @author Dmitry_Cherkas
+ * Factory for creating XSL-FO run configuration instances.
  */
 public class XslFoConfigurationFactory extends ConfigurationFactory {
 
-    public XslFoConfigurationFactory(ConfigurationType type) {
-        super(type);
-    }
+  public XslFoConfigurationFactory(ConfigurationType type) {
+    super(type);
+  }
 
-    @Override
-    public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project) {
-        // Single run configuration type; actual state selection happens in XslFoRunConfiguration.createState
-        return new XslFoRunConfiguration(project, this);
-    }
+  @Override
+  public @NotNull RunConfiguration createTemplateConfiguration(@NotNull Project project) {
+    // Single run configuration type; actual state selection happens in XslFoRunConfiguration.createState
+    return new XslFoRunConfiguration(project, this);
+  }
 
-    @Override
-    public @NotNull
-    @NonNls String getId() {
-        return this.getName();
-    }
+  @Override
+  public @NotNull
+  @NonNls String getId() {
+    return this.getName();
+  }
 
-    @Override
-    public @NotNull String getName() {
-        return "XSL-FO";
-    }
+  @Override
+  public @NotNull String getName() {
+    return "XSL-FO";
+  }
 }

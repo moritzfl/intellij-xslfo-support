@@ -10,86 +10,89 @@ import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.JComponent;
 
 /**
- * @author Dmitry_Cherkas
+ * Provides the settings UI and configuration panel for the plugin in IntelliJ preferences.
  */
-public class XslFoConfigurable implements SearchableConfigurable, Configurable.NoScroll, Disposable {
+public class XslFoConfigurable
+    implements SearchableConfigurable, Configurable.NoScroll, Disposable {
 
-    private final XslFoSettings mySettings = XslFoSettings.getInstance();
-    private XslFoSettingsPanel mySettingsPanel;
+  private final XslFoSettings mySettings = XslFoSettings.getInstance();
+  private XslFoSettingsPanel mySettingsPanel;
 
-    @Nls
-    @Override
-    public String getDisplayName() {
-        return "XSL-FO";
+  @Nls
+  @Override
+  public String getDisplayName() {
+    return "XSL-FO";
+  }
+
+  @Nullable
+  @Override
+  public String getHelpTopic() {
+    return getId();
+  }
+
+  @NotNull
+  @Override
+  public String getId() {
+    return "settings.xslfo";
+  }
+
+  @Nullable
+  @Override
+  public Runnable enableSearch(String option) {
+    return null;
+  }
+
+  @Nullable
+  @Override
+  public JComponent createComponent() {
+    if (mySettingsPanel == null) {
+      mySettingsPanel = new XslFoSettingsPanel();
     }
+    reset();
+    return mySettingsPanel.getComponent();
+  }
 
-    @Nullable
-    @Override
-    public String getHelpTopic() {
-        return getId();
-    }
+  @Override
+  public boolean isModified() {
+    return mySettingsPanel == null
+        ||
+        !Objects.equal(mySettings.getFopInstallationDir(), mySettingsPanel.getFopInstallationDir())
+        ||
+        !Objects.equal(mySettings.getUserConfigLocation(), mySettingsPanel.getUserConfigLocation())
+        || mySettings.isUseBundledFop() != mySettingsPanel.isUseBundledFopSelected()
+        || mySettings.getDefaultOutputFormat() != mySettingsPanel.getDefaultOutputFormat();
+  }
 
-    @NotNull
-    @Override
-    public String getId() {
-        return "settings.xslfo";
+  @Override
+  public void apply() throws ConfigurationException {
+    if (mySettingsPanel != null) {
+      mySettings.setFopInstallationDir(mySettingsPanel.getFopInstallationDir());
+      mySettings.setUserConfigLocation(mySettingsPanel.getUserConfigLocation());
+      mySettings.setUseBundledFop(mySettingsPanel.isUseBundledFopSelected());
+      mySettings.setDefaultOutputFormat(mySettingsPanel.getDefaultOutputFormat());
     }
+  }
 
-    @Nullable
-    @Override
-    public Runnable enableSearch(String option) {
-        return null;
+  @Override
+  public void reset() {
+    if (mySettingsPanel != null) {
+      mySettingsPanel.setFopInstallationDir(mySettings.getFopInstallationDir());
+      mySettingsPanel.setUserConfigLocation(mySettings.getUserConfigLocation());
+      mySettingsPanel.setUseBundledFopSelected(mySettings.isUseBundledFop());
+      mySettingsPanel.setDefaultOutputFormat(mySettings.getDefaultOutputFormat());
     }
+  }
 
-    @Nullable
-    @Override
-    public JComponent createComponent() {
-        if (mySettingsPanel == null) {
-            mySettingsPanel = new XslFoSettingsPanel();
-        }
-        reset();
-        return mySettingsPanel.getComponent();
-    }
+  @Override
+  public void disposeUIResources() {
+    Disposer.dispose(this);
+  }
 
-    @Override
-    public boolean isModified() {
-        return mySettingsPanel == null
-                || !Objects.equal(mySettings.getFopInstallationDir(), mySettingsPanel.getFopInstallationDir())
-                || !Objects.equal(mySettings.getUserConfigLocation(), mySettingsPanel.getUserConfigLocation())
-                || mySettings.isUseBundledFop() != mySettingsPanel.isUseBundledFopSelected()
-                                || mySettings.getDefaultOutputFormat() != mySettingsPanel.getDefaultOutputFormat();
-    }
-
-    @Override
-    public void apply() throws ConfigurationException {
-        if (mySettingsPanel != null) {
-            mySettings.setFopInstallationDir(mySettingsPanel.getFopInstallationDir());
-            mySettings.setUserConfigLocation(mySettingsPanel.getUserConfigLocation());
-            mySettings.setUseBundledFop(mySettingsPanel.isUseBundledFopSelected());
-            mySettings.setDefaultOutputFormat(mySettingsPanel.getDefaultOutputFormat());
-        }
-    }
-
-    @Override
-    public void reset() {
-        if (mySettingsPanel != null) {
-            mySettingsPanel.setFopInstallationDir(mySettings.getFopInstallationDir());
-            mySettingsPanel.setUserConfigLocation(mySettings.getUserConfigLocation());
-            mySettingsPanel.setUseBundledFopSelected(mySettings.isUseBundledFop());
-            mySettingsPanel.setDefaultOutputFormat(mySettings.getDefaultOutputFormat());
-        }
-    }
-
-    @Override
-    public void disposeUIResources() {
-        Disposer.dispose(this);
-    }
-
-    @Override
-    public void dispose() {
-        mySettingsPanel = null;
-    }
+  @Override
+  public void dispose() {
+    mySettingsPanel = null;
+  }
 }

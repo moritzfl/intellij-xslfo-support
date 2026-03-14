@@ -1,8 +1,6 @@
-# XSL-FO Support for IntelliJ IDEA [![Build Status](https://github.com/dmitry-cherkas/intellij-xslfo-support/actions/workflows/gradle.yml/badge.svg)](https://github.com/dmitry-cherkas/intellij-xslfo-support/actions/workflows/gradle.yml)
+# XSL-FO Toolkit for IntelliJ IDEA [![Build Status](https://github.com/dmitry-cherkas/intellij-xslfo-support/actions/workflows/gradle.yml/badge.svg)](https://github.com/dmitry-cherkas/intellij-xslfo-support/actions/workflows/gradle.yml)
 
 This plugin provides run configuration that allows execution of XSL-FO transformations with [Apache FOP](https://xmlgraphics.apache.org/fop/) (Formatting Objects Processor).
-
-The plugin can be installed within IntelliJ IDEA or by downloading the plugin from the [Jetbrains plugin repository](https://plugins.jetbrains.com/plugin/7736-xsl-fo-support-for-intellij-idea)
 
 ## Building the plugin
 
@@ -12,12 +10,5 @@ Simply run the runIde task using the gradle wrapper:
 
 ## Using the plugin:
 
-Download the FOP binary from [here](http://mirrors.ukfast.co.uk/sites/ftp.apache.org/xmlgraphics/fop/binaries/) and extract it somewhere on your system. Then configure the plugin to point to the root of the extracted directory.
-
-Settings > Languages & Frameworks > XSL-FO
-
-![XSL-FO Settings](screenshots/xsl-fo-settings.png)
-
-The plugin allows for a new XSL-FO run configuration
-
-![XSL-FO Settings](screenshots/xsl-fo-runconfig.png)
+The plugin can be used either with the bundled fop library or an external binary.
+It allows the creation of run configurations that you can execute to produce output in different formats.

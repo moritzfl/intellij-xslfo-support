@@ -11,30 +11,32 @@ import com.intellij.psi.PsiManager;
 import org.intellij.lang.xpath.xslt.XsltSupport;
 
 /**
- * @author Dmitry_Cherkas
+ * UI component for selecting an XSLT file with browse button functionality.
+ * Filters file chooser to only show XSLT/XSL files.
  */
 public class XsltFileField extends TextFieldWithBrowseButton {
 
-    private final FileChooserDescriptor myXsltDescriptor;
+  private final FileChooserDescriptor myXsltDescriptor;
 
-    public XsltFileField(final Project project) {
+  public XsltFileField(final Project project) {
 
-        final PsiManager psiManager = PsiManager.getInstance(project);
+    final PsiManager psiManager = PsiManager.getInstance(project);
 
-        myXsltDescriptor = new FileChooserDescriptor(true, false, false, false, false, false)
-                .withFileFilter(file -> ApplicationManager.getApplication().runReadAction((Computable<Boolean>) () -> {
-                    final PsiFile psiFile = psiManager.findFile(file);
-                    return psiFile != null && XsltSupport.isXsltFile(psiFile);
-                }));
+    myXsltDescriptor = new FileChooserDescriptor(true, false, false, false, false, false)
+        .withFileFilter(
+            file -> ApplicationManager.getApplication().runReadAction((Computable<Boolean>) () -> {
+              final PsiFile psiFile = psiManager.findFile(file);
+              return psiFile != null && XsltSupport.isXsltFile(psiFile);
+            }));
 
-        this.addActionListener(e -> FileChooser.chooseFile(myXsltDescriptor, project, null, file -> {
-            if (file != null) {
-                setText(file.getPath().replace('/', java.io.File.separatorChar));
-            }
-        }));
-    }
+    this.addActionListener(e -> FileChooser.chooseFile(myXsltDescriptor, project, null, file -> {
+      if (file != null) {
+        setText(file.getPath().replace('/', java.io.File.separatorChar));
+      }
+    }));
+  }
 
-    public FileChooserDescriptor getDescriptor() {
-        return myXsltDescriptor;
-    }
+  public FileChooserDescriptor getDescriptor() {
+    return myXsltDescriptor;
+  }
 }

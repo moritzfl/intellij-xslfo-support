@@ -31,39 +31,46 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 
 /**
- * @author Dmitry_Cherkas
+ * Run configuration for executing XSL-FO transformations using Apache FOP.
+ * Stores settings for XSLT file, XML input file, output format, and execution mode.
  */
 public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSettings>
-    implements RunConfigurationWithSuppressedDefaultDebugAction, RunProfileWithCompileBeforeLaunchOption {
+    implements RunConfigurationWithSuppressedDefaultDebugAction,
+    RunProfileWithCompileBeforeLaunchOption {
 
-    private static final String NAME = "XSL-FO Configuration";
+  private static final String NAME = "XSL-FO Configuration";
 
-    private String mySuggestedName;
+  private String mySuggestedName;
 
-    private XslFoRunSettings settings = new XslFoRunSettings(null, null, null, false, false, ExecutionMode.PLUGIN, null, SettingsFileMode.PLUGIN, null, true, org.intellij.lang.xslfo.run.OutputFormat.PDF);
+  private XslFoRunSettings settings =
+      new XslFoRunSettings(null, null, null, false, false, ExecutionMode.PLUGIN, null,
+          SettingsFileMode.PLUGIN, null, true, org.intellij.lang.xslfo.run.OutputFormat.PDF);
 
-    public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
-        super(project, factory, NAME);
+  public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
+    super(project, factory, NAME);
+  }
+
+  @Override
+  public boolean isExcludeCompileBeforeLaunchOption() {
+    return true;
+  }
+
+  @Override
+  public void checkConfiguration() throws RuntimeConfigurationException {
+    // Allow running with bundled FOP libraries even if external executable is not configured.
+    // Keep basic validation of input selections; detailed checks happen at execution time.
+    String xslt =
+        settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() :
+            null;
+    if (xslt == null || xslt.isEmpty()) {
+      throw new RuntimeConfigurationError("No XSLT file selected");
     }
-
-    @Override
-    public boolean isExcludeCompileBeforeLaunchOption() {
-        return true;
+    String xml = settings.getXmlInputFilePointer() != null ?
+        settings.getXmlInputFilePointer().getPresentableUrl() : null;
+    if (xml == null || xml.isEmpty()) {
+      throw new RuntimeConfigurationError("No XML input file selected");
     }
-
-    @Override
-    public void checkConfiguration() throws RuntimeConfigurationException {
-        // Allow running with bundled FOP libraries even if external executable is not configured.
-        // Keep basic validation of input selections; detailed checks happen at execution time.
-        String xslt = settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() : null;
-        if (xslt == null || xslt.isEmpty()) {
-            throw new RuntimeConfigurationError("No XSLT file selected");
-        }
-        String xml = settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getPresentableUrl() : null;
-        if (xml == null || xml.isEmpty()) {
-            throw new RuntimeConfigurationError("No XML input file selected");
-        }
-        // If temporary file is not selected, the 'Save to file' path must be provided (used for final destination)
+  // If temporary file is not selected, the 'Save to file' path must be provided (used for final destination)
         if (!settings.useTemporaryFiles()) {
             String out = settings.outputFile();
             if (out == null || out.trim().isEmpty()) {
@@ -72,290 +79,308 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
         }
     }
 
-    @NotNull
-    @Override
-    public SettingsEditor<XslFoRunConfiguration> getConfigurationEditor() {
-        return new XslFoRunConfigurationEditor(getProject());
+  @NotNull
+  @Override
+  public SettingsEditor<XslFoRunConfiguration> getConfigurationEditor() {
+    return new XslFoRunConfigurationEditor(getProject());
+  }
+
+  @Nullable
+  @Override
+  public RunProfileState getState(@NotNull Executor executor,
+                                  @NotNull ExecutionEnvironment environment)
+      throws ExecutionException {
+    final VirtualFile baseFile = findXsltFile();
+    if (baseFile == null) {
+      throw new ExecutionException("No XSLT file selected");
+    }
+    return createState(environment);
+  }
+
+  @NotNull
+  protected RunProfileState createState(@NotNull ExecutionEnvironment environment)
+      throws ExecutionException {
+    boolean useBundled = FopExecutionHelper.useBundledFop(this);
+    return useBundled ? new BundledFopCommandLineState(this, environment) :
+        new BinaryXslFoCommandLineState(this, environment);
+  }
+
+  @Override
+  public String suggestedName() {
+    return mySuggestedName;
+  }
+
+  public void setupFromFile(@NotNull XmlFile file) {
+    assert XsltSupport.isXsltFile(file) : "Not an XSLT file: " + file.getName();
+    mySuggestedName = file.getName();
+    setGeneratedName();
+
+    final VirtualFile virtualFile = file.getVirtualFile();
+    assert virtualFile != null : "No VirtualFile for " + file.getName();
+
+    setXsltFile(virtualFile);
+
+    final PsiFile[] associations =
+        FileAssociationsManager.getInstance(file.getProject()).getAssociationsFor(file);
+    if (associations.length > 0) {
+      final VirtualFile assoc = associations[0].getVirtualFile();
+      assert assoc != null;
+      setXmlInputFile(assoc);
+    }
+  }
+
+  @Override
+  public void readExternal(@NotNull Element element) throws InvalidDataException {
+    super.readExternal(element);
+
+    VirtualFilePointer xslt = null;
+    VirtualFilePointer xml = null;
+    String outPath = null;
+    boolean openOut = false;
+    boolean useTemp = false;
+    ExecutionMode executionMode = ExecutionMode.PLUGIN;
+    String fopDirOverride = null;
+    // New settings: config mode and path
+    SettingsFileMode configMode = SettingsFileMode.PLUGIN;
+    String configFilePath = null;
+
+    Element e = element.getChild("XsltFile");
+    if (e != null) {
+      final String url = e.getAttributeValue("url");
+      if (url != null) {
+        xslt = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
+      }
+    }
+    e = element.getChild("XmlFile");
+    if (e != null) {
+      final String url = e.getAttributeValue("url");
+      if (url != null) {
+        xml = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
+      }
     }
 
-    @Nullable
-    @Override
-    public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment environment) throws ExecutionException {
-        final VirtualFile baseFile = findXsltFile();
-        if (baseFile == null) {
-            throw new ExecutionException("No XSLT file selected");
-        }
-        return createState(environment);
+    e = element.getChild("OutputFile");
+    if (e != null) {
+      outPath = e.getAttributeValue("path");
+      openOut = Boolean.parseBoolean(e.getAttributeValue("openOutputFile"));
+    }
+    String useTempAttr = element.getAttributeValue("useTemporaryFiles");
+    if (useTempAttr != null) {
+      useTemp = Boolean.parseBoolean(useTempAttr);
+    }
+    String executionModeAttr = element.getAttributeValue("executionMode");
+    if (executionModeAttr != null) {
+      try {
+        executionMode = ExecutionMode.valueOf(executionModeAttr);
+      } catch (IllegalArgumentException ignore) {
+        executionMode = ExecutionMode.PLUGIN;
+      }
+    } else {
+      // Legacy fallback: map useBundledFopOverride boolean to BUNDLED/EXTERNAL if present
+      String legacyBundledAttr = element.getAttributeValue("useBundledFopOverride");
+      if (legacyBundledAttr != null) {
+        boolean legacyBundled = Boolean.parseBoolean(legacyBundledAttr);
+        executionMode = legacyBundled ? ExecutionMode.BUNDLED : ExecutionMode.EXTERNAL;
+      }
+    }
+    String fopDirAttr = element.getAttributeValue("fopInstallationDirOverride");
+    if (fopDirAttr != null && !fopDirAttr.isEmpty()) {
+      fopDirOverride = fopDirAttr;
+    }
+    // New persistence
+    String configModeAttr = element.getAttributeValue("configMode");
+    if (configModeAttr != null) {
+      try {
+        configMode = SettingsFileMode.valueOf(configModeAttr);
+      } catch (IllegalArgumentException ignore) {
+        configMode = SettingsFileMode.PLUGIN;
+      }
+    } else {
+      // Backward compatibility: infer from legacy attributes
+      String useDefaultsAttr = element.getAttributeValue("usePluginDefaultFopSettings");
+      boolean useDefaults = useDefaultsAttr == null || Boolean.parseBoolean(useDefaultsAttr);
+      String legacyUserConfig = element.getAttributeValue("userConfigLocationOverride");
+      if (useDefaults) {
+        configMode = SettingsFileMode.PLUGIN;
+      } else if (legacyUserConfig != null && !legacyUserConfig.isEmpty()) {
+        configMode = SettingsFileMode.FILE;
+        configFilePath = legacyUserConfig;
+      } else {
+        configMode = SettingsFileMode.EMPTY;
+      }
+    }
+    String configPathAttr = element.getAttributeValue("configFilePath");
+    if (configPathAttr != null && !configPathAttr.isEmpty()) {
+      configFilePath = configPathAttr;
+    }
+    // Output format
+    boolean usePluginOutputFormat = true;
+    String usePluginFormatAttr = element.getAttributeValue("usePluginOutputFormat");
+    if (usePluginFormatAttr != null) {
+      usePluginOutputFormat = Boolean.parseBoolean(usePluginFormatAttr);
+    }
+    OutputFormat outputFormat = OutputFormat.PDF;
+    String outputFormatAttr = element.getAttributeValue("outputFormat");
+    if (outputFormatAttr != null && !outputFormatAttr.isEmpty()) {
+      try {
+        outputFormat = OutputFormat.valueOf(outputFormatAttr);
+      } catch (IllegalArgumentException ignore) {
+        outputFormat = OutputFormat.PDF;
+      }
     }
 
-    @NotNull
-    protected RunProfileState createState(@NotNull ExecutionEnvironment environment) throws ExecutionException {
-        boolean useBundled = FopExecutionHelper.useBundledFop(this);
-        return useBundled ? new BundledFopCommandLineState(this, environment)
-                          : new BinaryXslFoCommandLineState(this, environment);
+    settings =
+        new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, executionMode, fopDirOverride,
+            configMode, configFilePath, usePluginOutputFormat, outputFormat);
+  }
+
+  @Override
+  public void writeExternal(@NotNull Element element) throws WriteExternalException {
+    super.writeExternal(element);
+
+    Element e = new Element("XsltFile");
+    if (settings.getXsltFilePointer() != null) {
+      e.setAttribute("url", settings.getXsltFilePointer().getUrl());
+      element.addContent(e);
     }
-
-    @Override
-    public String suggestedName() {
-        return mySuggestedName;
+    e = new Element("XmlFile");
+    if (settings.getXmlInputFilePointer() != null) {
+      e.setAttribute("url", settings.getXmlInputFilePointer().getUrl());
+      element.addContent(e);
     }
-
-    public void setupFromFile(@NotNull XmlFile file) {
-        assert XsltSupport.isXsltFile(file) : "Not an XSLT file: " + file.getName();
-        mySuggestedName = file.getName();
-        setGeneratedName();
-
-        final VirtualFile virtualFile = file.getVirtualFile();
-        assert virtualFile != null : "No VirtualFile for " + file.getName();
-
-        setXsltFile(virtualFile);
-
-        final PsiFile[] associations = FileAssociationsManager.getInstance(file.getProject()).getAssociationsFor(file);
-        if (associations.length > 0) {
-            final VirtualFile assoc = associations[0].getVirtualFile();
-            assert assoc != null;
-            setXmlInputFile(assoc);
-        }
+    e = new Element("OutputFile");
+    if (settings.outputFile() != null) {
+      e.setAttribute("path", settings.outputFile());
+      e.setAttribute("openOutputFile", Boolean.toString(settings.openOutputFile()));
+      element.addContent(e);
     }
-
-    @Override
-    public void readExternal(@NotNull Element element) throws InvalidDataException {
-        super.readExternal(element);
-
-        VirtualFilePointer xslt = null;
-        VirtualFilePointer xml = null;
-        String outPath = null;
-        boolean openOut = false;
-        boolean useTemp = false;
-        ExecutionMode executionMode = ExecutionMode.PLUGIN;
-        String fopDirOverride = null;
-        // New settings: config mode and path
-        SettingsFileMode configMode = SettingsFileMode.PLUGIN;
-        String configFilePath = null;
-
-        Element e = element.getChild("XsltFile");
-        if (e != null) {
-            final String url = e.getAttributeValue("url");
-            if (url != null) {
-                xslt = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
-            }
-        }
-        e = element.getChild("XmlFile");
-        if (e != null) {
-            final String url = e.getAttributeValue("url");
-            if (url != null) {
-                xml = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
-            }
-        }
-
-        e = element.getChild("OutputFile");
-        if (e != null) {
-            outPath = e.getAttributeValue("path");
-            openOut = Boolean.parseBoolean(e.getAttributeValue("openOutputFile"));
-        }
-        String useTempAttr = element.getAttributeValue("useTemporaryFiles");
-        if (useTempAttr != null) {
-            useTemp = Boolean.parseBoolean(useTempAttr);
-        }
-        String executionModeAttr = element.getAttributeValue("executionMode");
-        if (executionModeAttr != null) {
-            try {
-                executionMode = ExecutionMode.valueOf(executionModeAttr);
-            } catch (IllegalArgumentException ignore) {
-                executionMode = ExecutionMode.PLUGIN;
-            }
-        } else {
-            // Legacy fallback: map useBundledFopOverride boolean to BUNDLED/EXTERNAL if present
-            String legacyBundledAttr = element.getAttributeValue("useBundledFopOverride");
-            if (legacyBundledAttr != null) {
-                boolean legacyBundled = Boolean.parseBoolean(legacyBundledAttr);
-                executionMode = legacyBundled ? ExecutionMode.BUNDLED : ExecutionMode.EXTERNAL;
-            }
-        }
-        String fopDirAttr = element.getAttributeValue("fopInstallationDirOverride");
-        if (fopDirAttr != null && !fopDirAttr.isEmpty()) {
-            fopDirOverride = fopDirAttr;
-        }
-        // New persistence
-        String configModeAttr = element.getAttributeValue("configMode");
-        if (configModeAttr != null) {
-            try {
-                configMode = SettingsFileMode.valueOf(configModeAttr);
-            } catch (IllegalArgumentException ignore) {
-                configMode = SettingsFileMode.PLUGIN;
-            }
-        } else {
-            // Backward compatibility: infer from legacy attributes
-            String useDefaultsAttr = element.getAttributeValue("usePluginDefaultFopSettings");
-            boolean useDefaults = useDefaultsAttr == null || Boolean.parseBoolean(useDefaultsAttr);
-            String legacyUserConfig = element.getAttributeValue("userConfigLocationOverride");
-            if (useDefaults) {
-                configMode = SettingsFileMode.PLUGIN;
-            } else if (legacyUserConfig != null && !legacyUserConfig.isEmpty()) {
-                configMode = SettingsFileMode.FILE;
-                configFilePath = legacyUserConfig;
-            } else {
-                configMode = SettingsFileMode.EMPTY;
-            }
-        }
-        String configPathAttr = element.getAttributeValue("configFilePath");
-        if (configPathAttr != null && !configPathAttr.isEmpty()) {
-            configFilePath = configPathAttr;
-        }
-        // Output format
-        boolean usePluginOutputFormat = true;
-        String usePluginFormatAttr = element.getAttributeValue("usePluginOutputFormat");
-        if (usePluginFormatAttr != null) {
-            usePluginOutputFormat = Boolean.parseBoolean(usePluginFormatAttr);
-        }
-        OutputFormat outputFormat = OutputFormat.PDF;
-        String outputFormatAttr = element.getAttributeValue("outputFormat");
-        if (outputFormatAttr != null && !outputFormatAttr.isEmpty()) {
-            try {
-                outputFormat = OutputFormat.valueOf(outputFormatAttr);
-            } catch (IllegalArgumentException ignore) {
-                outputFormat = OutputFormat.PDF;
-            }
-        }
-
-        settings = new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, executionMode, fopDirOverride, configMode, configFilePath, usePluginOutputFormat, outputFormat);
+    element.setAttribute("useTemporaryFiles", Boolean.toString(settings.useTemporaryFiles()));
+    element.setAttribute("executionMode", settings.executionMode().name());
+    if (settings.fopInstallationDirOverride() != null) {
+      element.setAttribute("fopInstallationDirOverride", settings.fopInstallationDirOverride());
     }
-
-    @Override
-    public void writeExternal(@NotNull Element element) throws WriteExternalException {
-        super.writeExternal(element);
-
-        Element e = new Element("XsltFile");
-        if (settings.getXsltFilePointer() != null) {
-            e.setAttribute("url", settings.getXsltFilePointer().getUrl());
-            element.addContent(e);
-        }
-        e = new Element("XmlFile");
-        if (settings.getXmlInputFilePointer() != null) {
-            e.setAttribute("url", settings.getXmlInputFilePointer().getUrl());
-            element.addContent(e);
-        }
-        e = new Element("OutputFile");
-        if (settings.outputFile() != null) {
-            e.setAttribute("path", settings.outputFile());
-            e.setAttribute("openOutputFile", Boolean.toString(settings.openOutputFile()));
-            element.addContent(e);
-        }
-        element.setAttribute("useTemporaryFiles", Boolean.toString(settings.useTemporaryFiles()));
-        element.setAttribute("executionMode", settings.executionMode().name());
-        if (settings.fopInstallationDirOverride() != null) {
-            element.setAttribute("fopInstallationDirOverride", settings.fopInstallationDirOverride());
-        }
-        element.setAttribute("configMode", settings.configMode().name());
-        if (settings.configMode() == SettingsFileMode.FILE && settings.configFilePath() != null) {
-            element.setAttribute("configFilePath", settings.configFilePath());
-        }
-        // Output format persistence
-        element.setAttribute("usePluginOutputFormat", Boolean.toString(settings.usePluginOutputFormat()));
-        element.setAttribute("outputFormat", settings.outputFormat().name());
+    element.setAttribute("configMode", settings.configMode().name());
+    if (settings.configMode() == SettingsFileMode.FILE && settings.configFilePath() != null) {
+      element.setAttribute("configFilePath", settings.configFilePath());
     }
+    // Output format persistence
+    element.setAttribute("usePluginOutputFormat",
+        Boolean.toString(settings.usePluginOutputFormat()));
+    element.setAttribute("outputFormat", settings.outputFormat().name());
+  }
 
-    @Override
-    public RunConfiguration clone() {
-        final XslFoRunConfiguration configuration = (XslFoRunConfiguration) super.clone();
-        configuration.settings = this.settings.clone();
-        return configuration;
-    }
+  @Override
+  public RunConfiguration clone() {
+    final XslFoRunConfiguration configuration = (XslFoRunConfiguration) super.clone();
+    configuration.settings = this.settings.clone();
+    return configuration;
+  }
 
-    public void setXsltFile(@NotNull String xsltFile) {
-        if (xsltFile.isEmpty()) {
-            settings = settings.withXsltFile(null);
-        } else {
-            VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
-                .create(VfsUtilCore.pathToUrl(xsltFile).replace(File.separatorChar, '/'), getProject(), null);
-            settings = settings.withXsltFile(ptr);
-        }
+  public void setXsltFile(@NotNull String xsltFile) {
+    if (xsltFile.isEmpty()) {
+      settings = settings.withXsltFile(null);
+    } else {
+      VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
+          .create(VfsUtilCore.pathToUrl(xsltFile).replace(File.separatorChar, '/'), getProject(),
+              null);
+      settings = settings.withXsltFile(ptr);
     }
+  }
 
-    public void setXsltFile(VirtualFile virtualFile) {
-        VirtualFilePointer ptr = VirtualFilePointerManager.getInstance().create(virtualFile, getProject(), null);
-        settings = settings.withXsltFile(ptr);
-    }
+  public void setXsltFile(VirtualFile virtualFile) {
+    VirtualFilePointer ptr =
+        VirtualFilePointerManager.getInstance().create(virtualFile, getProject(), null);
+    settings = settings.withXsltFile(ptr);
+  }
 
-    public void setXsltFile(@NotNull VirtualFilePointer pointer) {
-        settings = settings.withXsltFile(pointer);
-    }
+  public void setXsltFile(@NotNull VirtualFilePointer pointer) {
+    settings = settings.withXsltFile(pointer);
+  }
 
-    @Nullable
-    public String getXsltFile() {
-        return settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() : null;
-    }
+  @Nullable
+  public String getXsltFile() {
+    return settings.getXsltFilePointer() != null ?
+        settings.getXsltFilePointer().getPresentableUrl() : null;
+  }
 
-    @Nullable
-    public VirtualFile findXsltFile() {
-        return settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getFile() : null;
-    }
+  @Nullable
+  public VirtualFile findXsltFile() {
+    return settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getFile() : null;
+  }
 
-    public void setXmlInputFile(@NotNull String xmlInputFile) {
-        if (xmlInputFile.isEmpty()) {
-            settings = settings.withXmlInputFile(null);
-        } else {
-            VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
-                .create(VfsUtilCore.pathToUrl(xmlInputFile).replace(File.separatorChar, '/'), getProject(), null);
-            settings = settings.withXmlInputFile(ptr);
-        }
+  public void setXmlInputFile(@NotNull String xmlInputFile) {
+    if (xmlInputFile.isEmpty()) {
+      settings = settings.withXmlInputFile(null);
+    } else {
+      VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
+          .create(VfsUtilCore.pathToUrl(xmlInputFile).replace(File.separatorChar, '/'),
+              getProject(), null);
+      settings = settings.withXmlInputFile(ptr);
     }
+  }
 
-    public void setXmlInputFile(VirtualFile xmlInputFile) {
-        VirtualFilePointer ptr = VirtualFilePointerManager.getInstance().create(xmlInputFile, getProject(), null);
-        settings = settings.withXmlInputFile(ptr);
-    }
+  public void setXmlInputFile(VirtualFile xmlInputFile) {
+    VirtualFilePointer ptr =
+        VirtualFilePointerManager.getInstance().create(xmlInputFile, getProject(), null);
+    settings = settings.withXmlInputFile(ptr);
+  }
 
-    public void setXmlInputFile(@NotNull VirtualFilePointer pointer) {
-        settings = settings.withXmlInputFile(pointer);
-    }
+  public void setXmlInputFile(@NotNull VirtualFilePointer pointer) {
+    settings = settings.withXmlInputFile(pointer);
+  }
 
-    @Nullable
-    public String getXmlInputFile() {
-        return settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getPresentableUrl() : null;
-    }
+  @Nullable
+  public String getXmlInputFile() {
+    return settings.getXmlInputFilePointer() != null ?
+        settings.getXmlInputFilePointer().getPresentableUrl() : null;
+  }
 
-    @Nullable
-    public VirtualFile findXmlInputFile() {
-        return settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getFile() : null;
-    }
+  @Nullable
+  public VirtualFile findXmlInputFile() {
+    return settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getFile() :
+        null;
+  }
 
-    public boolean isOpenOutputFile() {
-        return settings.openOutputFile();
-    }
+  public boolean isOpenOutputFile() {
+    return settings.openOutputFile();
+  }
 
-    public void setOpenOutputFile(boolean openOutputFile) {
-        this.settings = this.settings.withOpenOutputFile(openOutputFile);
-    }
+  public void setOpenOutputFile(boolean openOutputFile) {
+    this.settings = this.settings.withOpenOutputFile(openOutputFile);
+  }
 
-    public String getOutputFile() {
-        return settings.outputFile();
-    }
+  public String getOutputFile() {
+    return settings.outputFile();
+  }
 
-    public void setOutputFile(String outputFile) {
-        this.settings = this.settings.withOutputFile(outputFile);
-    }
+  public void setOutputFile(String outputFile) {
+    this.settings = this.settings.withOutputFile(outputFile);
+  }
 
-    public void setUseTemporaryFiles(boolean useTemporaryFiles) {
-        this.settings = this.settings.withUseTemporaryFiles(useTemporaryFiles);
-    }
+  public void setUseTemporaryFiles(boolean useTemporaryFiles) {
+    this.settings = this.settings.withUseTemporaryFiles(useTemporaryFiles);
+  }
 
-    public boolean isUseTemporaryFiles() {
-        return settings.useTemporaryFiles();
-    }
+  public boolean isUseTemporaryFiles() {
+    return settings.useTemporaryFiles();
+  }
 
-    /**
-     * Returns the grouped settings object for this run configuration.
-     */
-    @NotNull
-    public XslFoRunSettings getSettings() {
-        return settings;
-    }
+  /**
+   * Returns the grouped settings object for this run configuration.
+   *
+   * @return the settings object containing all run configuration parameters
+   */
+  @NotNull
+  public XslFoRunSettings getSettings() {
+    return settings;
+  }
 
-    /**
-     * Replaces this configuration's settings instance.
-     */
-    public void setSettings(@NotNull XslFoRunSettings settings) {
-        this.settings = settings;
-    }
+  /**
+   * Replaces this configuration's settings instance.
+   *
+   * @param settings the new settings to use for this configuration
+   */
+  public void setSettings(@NotNull XslFoRunSettings settings) {
+    this.settings = settings;
+  }
 }

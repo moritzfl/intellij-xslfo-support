@@ -4,6 +4,7 @@ plugins {
     id 'org.jetbrains.intellij.platform' version '2.7.1'
     id 'java'
     id 'idea'
+    id 'checkstyle'
 }
 
 repositories {
@@ -87,3 +88,10 @@ tasks.named('processResources') {
 }
 
 version = "${version}"
+
+checkstyle {
+    toolVersion = '10.17.0'
+    configFile = file("$rootDir/config/checkstyle/google_checks.xml")
+    ignoreFailures = true
+    showViolations = true
+}

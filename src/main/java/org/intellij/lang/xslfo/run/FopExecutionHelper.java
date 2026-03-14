@@ -13,37 +13,45 @@ import org.jetbrains.annotations.NotNull;
  * Helper utilities for FOP execution and post-processing.
  */
 public final class FopExecutionHelper {
-    private FopExecutionHelper() {}
+  private FopExecutionHelper() {
+  }
 
-    /**
-     * Determines whether the bundled in-process FOP should be used for the given configuration.
-     *
-     * Logic (preserved from prior inline implementation):
-     * - If ExecutionMode.PLUGIN: follow the plugin setting XslFoSettings.isUseBundledFop().
-     * - If ExecutionMode.BUNDLED: use bundled FOP.
-     * - If ExecutionMode.EXTERNAL: use external/binary FOP.
-     */
-    public static boolean useBundledFop(@NotNull XslFoRunConfiguration runConfiguration) {
-        ExecutionMode mode = runConfiguration.getSettings().executionMode();
-        if (mode == ExecutionMode.PLUGIN) {
-            XslFoSettings settings = XslFoSettings.getInstance();
-            boolean pluginBundled = settings != null && settings.isUseBundledFop();
-            return pluginBundled;
-        }
-        return mode == ExecutionMode.BUNDLED;
+  /**
+   * Determines whether the bundled in-process FOP should be used for the given configuration.
+   *
+   * @param runConfiguration the run configuration to check
+   * @return true if bundled FOP should be used, false if external/binary FOP should be used
+   *
+   * <p>Logic (preserved from prior inline implementation):
+   * - If ExecutionMode.PLUGIN: follow the plugin setting XslFoSettings.isUseBundledFop().
+   * - If ExecutionMode.BUNDLED: use bundled FOP.
+   * - If ExecutionMode.EXTERNAL: use external/binary FOP.
+   */
+  public static boolean useBundledFop(@NotNull XslFoRunConfiguration runConfiguration) {
+    ExecutionMode mode = runConfiguration.getSettings().executionMode();
+    if (mode == ExecutionMode.PLUGIN) {
+      XslFoSettings settings = XslFoSettings.getInstance();
+      boolean pluginBundled = settings != null && settings.isUseBundledFop();
+      return pluginBundled;
     }
+    return mode == ExecutionMode.BUNDLED;
+  }
 
-    /**
-     * Opens the given file in the IDE. If the file type is unknown (no association), open it as plain text.
-     */
-    public static void openFileInEditor(@NotNull Project project, @NotNull VirtualFile file) {
-        FileType type = file.getFileType();
-        if (type instanceof UnknownFileType) {
-            // Force open in text editor
-            FileEditorManager.getInstance(project).openTextEditor(new OpenFileDescriptor(project, file, 0), true);
-        } else {
-            // Use default navigation/editor for known types
-            new OpenFileDescriptor(project, file).navigate(true);
-        }
+  /**
+   * Opens the given file in the IDE. If the file type is unknown (no association), open it as plain text.
+   *
+   * @param project the current project
+   * @param file the file to open
+   */
+  public static void openFileInEditor(@NotNull Project project, @NotNull VirtualFile file) {
+    FileType type = file.getFileType();
+    if (type instanceof UnknownFileType) {
+      // Force open in text editor
+      FileEditorManager.getInstance(project)
+          .openTextEditor(new OpenFileDescriptor(project, file, 0), true);
+    } else {
+      // Use default navigation/editor for known types
+      new OpenFileDescriptor(project, file).navigate(true);
     }
+  }
 }

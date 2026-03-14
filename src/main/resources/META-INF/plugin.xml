@@ -1,7 +1,7 @@
 <!DOCTYPE idea-plugin PUBLIC "Plugin/DTD" "http://plugins.intellij.net/plugin.dtd">
 <idea-plugin>
     <id>XslFoSupport</id>
-    <name>XSL-FO Support</name>
+    <name>XSL-FO Toolkit</name>
     <version>@version@</version>
 
     <vendor email="me@moritzf.de" url="https://github.com/moritzfl/intellij-xslfo-support">

@@ -1,16 +1,17 @@
 package icons;
 
+import javax.swing.Icon;
+
 import com.intellij.openapi.util.IconLoader;
 
-import javax.swing.*;
 
 /**
- * @author Dmitry_Cherkas
+ * Provides plugin icons for the IntelliJ UI.
  */
 public class XslFoIcons {
-    private static Icon load(String path) {
-        return IconLoader.getIcon(path, XslFoIcons.class);
-    }
+  private static Icon load() {
+    return IconLoader.getIcon("/icons/fop-logo-16x16.png", XslFoIcons.class);
+  }
 
-    public static final Icon FopLogo = load("/icons/fop-logo-16x16.png");
+  public static final Icon FopLogo = load();
 }

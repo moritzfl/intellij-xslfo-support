@@ -18,7 +18,7 @@ import org.intellij.lang.xslfo.XslFoSettings;
 import org.jetbrains.annotations.NotNull;
 import org.xml.sax.SAXException;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 import javax.xml.transform.Result;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -70,10 +70,7 @@ class BundledFopCommandLineState extends CommandLineState {
             int exitCode = 0;
             try {
                 // Show a popup notification indicating which FOP is used (bundled)
-                NotificationGroupManager.getInstance()
-                    .getNotificationGroup("XSL-FO")
-                    .createNotification("Using FOP (bundled, in-process)", NotificationType.INFORMATION)
-                    .notify(config.getProject());
+                NotificationGroupManager.getInstance().getNotificationGroup("XSL-FO").createNotification("Using FOP (bundled, in-process)", NotificationType.INFORMATION).notify(config.getProject());
                 runFop();
             } catch (Throwable t) {
                 exitCode = 1;
@@ -127,13 +124,19 @@ class BundledFopCommandLineState extends CommandLineState {
 
         String xmlPath = config.getSettings().getXmlInputFilePointer() != null ? config.getSettings().getXmlInputFilePointer().getPresentableUrl() : null;
         String xslPath = config.getSettings().getXsltFilePointer() != null ? config.getSettings().getXsltFilePointer().getPresentableUrl() : null;
-        if (xmlPath == null || xmlPath.isEmpty()) throw new IOException("No XML input file selected");
-        if (xslPath == null || xslPath.isEmpty()) throw new IOException("No XSLT file selected");
+        if (xmlPath == null || xmlPath.isEmpty()) {
+          throw new IOException("No XML input file selected");
+        }
+        if (xslPath == null || xslPath.isEmpty()) {
+          throw new IOException("No XSLT file selected");
+        }
 
         File outFile = new File(getOutputFilePath());
         // ensure parent dir exists
         File parent = outFile.getParentFile();
-        if (parent != null) parent.mkdirs();
+        if (parent != null) {
+          parent.mkdirs();
+        }
 
         // Configure FOP factory; optionally load user config if present
         XslFoSettings pluginSettings = XslFoSettings.getInstance();

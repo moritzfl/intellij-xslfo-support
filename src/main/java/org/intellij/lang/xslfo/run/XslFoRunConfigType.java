@@ -9,39 +9,39 @@ import org.jetbrains.annotations.NotNull;
 
 import icons.XslFoIcons;
 
-import javax.swing.*;
+import javax.swing.Icon;
 
 public class XslFoRunConfigType implements ConfigurationType {
 
-    private final ConfigurationFactory myXslFoFactory;
+  private final ConfigurationFactory myXslFoFactory;
 
-    public XslFoRunConfigType() {
-        myXslFoFactory = new XslFoConfigurationFactory(this);
-    }
+  public XslFoRunConfigType() {
+    myXslFoFactory = new XslFoConfigurationFactory(this);
+  }
 
-    public static XslFoRunConfigType getInstance() {
-        return ConfigurationTypeUtil.findConfigurationType(XslFoRunConfigType.class);
-    }
+  public static XslFoRunConfigType getInstance() {
+    return ConfigurationTypeUtil.findConfigurationType(XslFoRunConfigType.class);
+  }
 
-    public String getDisplayName() {
-        return "XSL-FO";
-    }
+  public String getDisplayName() {
+    return "XSL-FO";
+  }
 
-    @NonNls
-    @NotNull
-    public String getId() {
-        return "XSL-FO";
-    }
+  @NonNls
+  @NotNull
+  public String getId() {
+    return "XSL-FO";
+  }
 
-    public String getConfigurationTypeDescription() {
-        return "Run XSL-FO Transformation";
-    }
+  public String getConfigurationTypeDescription() {
+    return "Run XSL-FO Transformation";
+  }
 
-    public Icon getIcon() {
-        return XslFoIcons.FopLogo;
-    }
+  public Icon getIcon() {
+    return XslFoIcons.FopLogo;
+  }
 
-    public ConfigurationFactory[] getConfigurationFactories() {
-        return new ConfigurationFactory[]{myXslFoFactory};
-    }
+  public ConfigurationFactory[] getConfigurationFactories() {
+    return new ConfigurationFactory[]{myXslFoFactory};
+  }
 }
