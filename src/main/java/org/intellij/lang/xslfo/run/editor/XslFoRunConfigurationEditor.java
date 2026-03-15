@@ -1,24 +1,31 @@
 package org.intellij.lang.xslfo.run.editor;
 
+import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.util.ui.FormBuilder;
+import org.intellij.lang.xslfo.XslFoSettings;
+import org.intellij.lang.xslfo.run.ExecutionMode;
+import org.intellij.lang.xslfo.run.OutputFormat;
+import org.intellij.lang.xslfo.run.SettingsFileMode;
+import org.intellij.lang.xslfo.run.XslFoRunConfiguration;
+import org.jetbrains.annotations.NotNull;
+
 import javax.swing.ButtonGroup;
-import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.util.List;
-import org.intellij.lang.xslfo.run.OutputFormat;
-import org.intellij.lang.xslfo.run.SettingsFileMode;
-import org.intellij.lang.xslfo.run.XslFoRunConfiguration;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Settings editor for XSL-FO run configurations.
@@ -34,202 +41,213 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
   private JCheckBox myOpenOutputFile;
   private JCheckBox myUseTemporaryFiles;
 
-  // Output format override
   private JRadioButton myUsePluginOutputFormatRadio;
   private JRadioButton myUseCustomOutputFormatRadio;
   private JComboBox<OutputFormat> myOutputFormatCombo;
 
-  // FOP execution selection (plugin/bundled/external)
   private JRadioButton myUsePluginExecutionRadio;
   private JRadioButton myUseBundledFopRadio;
   private JRadioButton myUseBinaryFopRadio;
   private JLabel myExternalFopInfoLabel;
   private TextFieldWithBrowseButton myFopInstallationDir;
-  // FOP configuration (user config) source selection
+
   private JRadioButton myUsePluginConfig;
   private JRadioButton myUseEmptyConfig;
   private JRadioButton myUseConfigFile;
   private TextFieldWithBrowseButton myUserConfigLocation;
 
-  /**
-   * Creates a new run configuration editor for the given project.
-   *
-   * @param project the current IntelliJ project
-   */
   public XslFoRunConfigurationEditor(Project project) {
     this.myProject = project;
+    buildUi();
 
-    // Replace deprecated addBrowseFolderListener with explicit chooser action
-    FileChooserDescriptor descriptor =
+    FileChooserDescriptor outputDescriptor =
         FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor();
-    if (myOutputFile != null) {
-      myOutputFile.addActionListener(
-          e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, myProject, null,
-              file -> {
-                if (file != null) {
-                  myOutputFile.setText(file.getPath().replace('/', java.io.File.separatorChar));
-                }
-              }));
-    }
-    if (myUseTemporaryFiles != null) {
-      myUseTemporaryFiles.addActionListener(e -> updateComponentsState());
-    }
-
-    // Output format UI wiring
-    if (myOutputFormatCombo != null) {
-      myOutputFormatCombo.removeAllItems();
-      for (org.intellij.lang.xslfo.run.OutputFormat f
-          : org.intellij.lang.xslfo.run.OutputFormat.values()) {
-        myOutputFormatCombo.addItem(f);
-      }
-    }
-    if (myUsePluginOutputFormatRadio != null && myUseCustomOutputFormatRadio != null) {
-      ButtonGroup outGroup = new ButtonGroup();
-      outGroup.add(myUsePluginOutputFormatRadio);
-      outGroup.add(myUseCustomOutputFormatRadio);
-      myUsePluginOutputFormatRadio.addActionListener(e -> updateComponentsState());
-      myUseCustomOutputFormatRadio.addActionListener(e -> updateComponentsState());
-    }
-
-    // FOP settings UI wiring
-    if (myFopInstallationDir != null) {
-      FileChooserDescriptor dirDescriptor =
-          FileChooserDescriptorFactory.createSingleFolderDescriptor();
-      myFopInstallationDir.addActionListener(
-          e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(dirDescriptor, myProject,
-              null, file -> {
-                if (file != null) {
-                  myFopInstallationDir.setText(
-                      file.getPath().replace('/', java.io.File.separatorChar));
-                }
-              }));
-      // Update explanatory label live when the directory text changes
-      myFopInstallationDir.getTextField();
-      if (myFopInstallationDir.getTextField().getDocument() != null) {
-        myFopInstallationDir.getTextField().getDocument()
-            .addDocumentListener(new DocumentListener() {
-              @Override
-              public void insertUpdate(DocumentEvent e) {
-                updateComponentsState();
-              }
-
-              @Override
-              public void removeUpdate(DocumentEvent e) {
-                updateComponentsState();
-              }
-
-              @Override
-              public void changedUpdate(DocumentEvent e) {
-                updateComponentsState();
-              }
-            });
-      }
-    }
-    if (myUserConfigLocation != null) {
-      FileChooserDescriptor fileDescriptor =
-          new FileChooserDescriptor(true, false, false, false, false, true);
-      myUserConfigLocation.addActionListener(
-          e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(fileDescriptor, myProject,
-              null, file -> {
-                if (file != null) {
-                  myUserConfigLocation.setText(
-                      file.getPath().replace('/', java.io.File.separatorChar));
-                }
-              }));
-      // Keep UI state in sync when user config changes
-      // (not strictly required for label, but harmless)
-      myUserConfigLocation.getTextField();
-      if (myUserConfigLocation.getTextField().getDocument() != null) {
-        myUserConfigLocation.getTextField().getDocument()
-            .addDocumentListener(new DocumentListener() {
-              @Override
-              public void insertUpdate(DocumentEvent e) {
-                updateComponentsState();
-              }
-
-              @Override
-              public void removeUpdate(DocumentEvent e) {
-                updateComponentsState();
-              }
-
-              @Override
-              public void changedUpdate(DocumentEvent e) {
-                updateComponentsState();
-              }
-            });
-      }
-    }
-    if (myUseBundledFopRadio != null && myUseBinaryFopRadio != null) {
-      ButtonGroup group = new ButtonGroup();
-      if (myUsePluginExecutionRadio != null) {
-        group.add(myUsePluginExecutionRadio);
-      }
-      group.add(myUseBundledFopRadio);
-      group.add(myUseBinaryFopRadio);
-
-      // Set bundled FOP version text similar to Settings panel
-      try {
-        String version = null;
-        java.io.InputStream is = XslFoRunConfigurationEditor.class.getClassLoader()
-            .getResourceAsStream("META-INF/xslfo/bundled-fop-version.txt");
-        if (is != null) {
-          try (java.io.BufferedReader br = new java.io.BufferedReader(
-              new java.io.InputStreamReader(is))) {
-            String line = br.readLine();
-            if (line != null && !line.trim().isEmpty()) {
-              version = line.trim();
-            }
+    myOutputFile.addActionListener(
+        e -> FileChooser.chooseFile(outputDescriptor, myProject, null, file -> {
+          if (file != null) {
+            myOutputFile.setText(file.getPath().replace('/', java.io.File.separatorChar));
           }
-        }
-        if (version == null) {
-          version = "unknown";
-        }
-        myUseBundledFopRadio.setText("Use bundled FOP (" + version + ")");
-      } catch (Throwable ignore) {
-        // Keep default text if version cannot be determined
-      }
+        }));
+    myUseTemporaryFiles.addActionListener(e -> updateComponentsState());
+
+    myOutputFormatCombo.removeAllItems();
+    for (OutputFormat f : OutputFormat.values()) {
+      myOutputFormatCombo.addItem(f);
     }
-    // Group config mode radios
-    if (myUsePluginConfig != null && myUseEmptyConfig != null && myUseConfigFile != null) {
-      ButtonGroup cfgGroup = new ButtonGroup();
-      cfgGroup.add(myUsePluginConfig);
-      cfgGroup.add(myUseEmptyConfig);
-      cfgGroup.add(myUseConfigFile);
-    }
-    if (myUsePluginExecutionRadio != null) {
-      myUsePluginExecutionRadio.addActionListener(e -> updateComponentsState());
-    }
-    if (myUseBundledFopRadio != null) {
-      myUseBundledFopRadio.addActionListener(e -> updateComponentsState());
-    }
-    if (myUseBinaryFopRadio != null) {
-      myUseBinaryFopRadio.addActionListener(e -> updateComponentsState());
-    }
-    if (myUsePluginConfig != null) {
-      myUsePluginConfig.addActionListener(e -> updateComponentsState());
-    }
-    if (myUseEmptyConfig != null) {
-      myUseEmptyConfig.addActionListener(e -> updateComponentsState());
-    }
-    if (myUseConfigFile != null) {
-      myUseConfigFile.addActionListener(e -> updateComponentsState());
-    }
+    ButtonGroup outputGroup = new ButtonGroup();
+    outputGroup.add(myUsePluginOutputFormatRadio);
+    outputGroup.add(myUseCustomOutputFormatRadio);
+    myUsePluginOutputFormatRadio.addActionListener(e -> updateComponentsState());
+    myUseCustomOutputFormatRadio.addActionListener(e -> updateComponentsState());
+
+    FileChooserDescriptor dirDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor();
+    myFopInstallationDir.addActionListener(
+        e -> FileChooser.chooseFile(dirDescriptor, myProject, null, file -> {
+          if (file != null) {
+            myFopInstallationDir.setText(file.getPath().replace('/', java.io.File.separatorChar));
+          }
+        }));
+    addStateUpdateDocumentListener(myFopInstallationDir);
+
+    FileChooserDescriptor configFileDescriptor =
+        new FileChooserDescriptor(true, false, false, false, false, true);
+    myUserConfigLocation.addActionListener(
+        e -> FileChooser.chooseFile(configFileDescriptor, myProject, null, file -> {
+          if (file != null) {
+            myUserConfigLocation.setText(file.getPath().replace('/', java.io.File.separatorChar));
+          }
+        }));
+    addStateUpdateDocumentListener(myUserConfigLocation);
+
+    ButtonGroup executionGroup = new ButtonGroup();
+    executionGroup.add(myUsePluginExecutionRadio);
+    executionGroup.add(myUseBundledFopRadio);
+    executionGroup.add(myUseBinaryFopRadio);
+    applyBundledFopVersionLabel();
+
+    ButtonGroup configGroup = new ButtonGroup();
+    configGroup.add(myUsePluginConfig);
+    configGroup.add(myUseEmptyConfig);
+    configGroup.add(myUseConfigFile);
+
+    myUsePluginExecutionRadio.addActionListener(e -> updateComponentsState());
+    myUseBundledFopRadio.addActionListener(e -> updateComponentsState());
+    myUseBinaryFopRadio.addActionListener(e -> updateComponentsState());
+    myUsePluginConfig.addActionListener(e -> updateComponentsState());
+    myUseEmptyConfig.addActionListener(e -> updateComponentsState());
+    myUseConfigFile.addActionListener(e -> updateComponentsState());
 
     refreshPluginOutputFormatLabel();
     updateComponentsState();
   }
 
-  @SuppressWarnings("unused")
-  private void createUIComponents() {
+  private void buildUi() {
     myXsltFile = new XsltFileField(myProject);
     myXmlInputFile = new XmlInputFileField(myProject, myXsltFile);
+    myOutputFile = new TextFieldWithBrowseButton();
+    myOpenOutputFile = new JCheckBox("Open saved file after execution", true);
+    myUseTemporaryFiles = new JCheckBox("Use temporary file to save generated document");
+
+    myUsePluginOutputFormatRadio = new JRadioButton("Use output format from plugin settings", true);
+    myUseCustomOutputFormatRadio = new JRadioButton("Use output format:");
+    myOutputFormatCombo = new JComboBox<>();
+
+    myUsePluginExecutionRadio = new JRadioButton("Use plugin settings", true);
+    myUseBundledFopRadio = new JRadioButton("Use bundled FOP");
+    myUseBinaryFopRadio = new JRadioButton("Use external FOP (binary)");
+    myExternalFopInfoLabel = new JLabel();
+    myFopInstallationDir = new TextFieldWithBrowseButton();
+
+    myUsePluginConfig = new JRadioButton("Use plugin settings", true);
+    myUseEmptyConfig = new JRadioButton("Use empty settings");
+    myUseConfigFile = new JRadioButton("Use settings file");
+    myUserConfigLocation = new TextFieldWithBrowseButton();
+
+    myComponent = FormBuilder.createFormBuilder()
+        .addComponent(createInputPanel())
+        .addComponent(createOutputPanel())
+        .addComponent(createExecutionPanel())
+        .addComponent(createConfigPanel())
+        .addComponentFillVertically(new JPanel(), 0)
+        .getPanel();
   }
 
+  private JPanel createInputPanel() {
+    JPanel panel = FormBuilder.createFormBuilder()
+        .addLabeledComponent("XSLT script file:", myXsltFile)
+        .addComponent(myXmlInputFile)
+        .getPanel();
+    panel.setBorder(javax.swing.BorderFactory.createTitledBorder("Input"));
+    return panel;
+  }
 
-  /* SettingsEditor<XslFoRunConfiguration> implementation */
+  private JPanel createOutputPanel() {
+    JPanel outputFormatRow = new JPanel(new BorderLayout());
+    outputFormatRow.add(myUseCustomOutputFormatRadio, BorderLayout.WEST);
+    outputFormatRow.add(myOutputFormatCombo, BorderLayout.CENTER);
+
+    JPanel panel = FormBuilder.createFormBuilder()
+        .addComponent(myUseTemporaryFiles)
+        .addLabeledComponent("Save to File:", myOutputFile)
+        .addComponent(myOpenOutputFile)
+        .addComponent(myUsePluginOutputFormatRadio)
+        .addComponent(outputFormatRow)
+        .getPanel();
+    panel.setBorder(javax.swing.BorderFactory.createTitledBorder("Output"));
+    return panel;
+  }
+
+  private JPanel createExecutionPanel() {
+    JPanel executionModeRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    executionModeRow.add(myUsePluginExecutionRadio);
+    executionModeRow.add(myUseBundledFopRadio);
+    executionModeRow.add(myUseBinaryFopRadio);
+
+    JPanel panel = FormBuilder.createFormBuilder()
+        .addComponent(executionModeRow)
+        .addComponent(myExternalFopInfoLabel)
+        .addLabeledComponent("FOP installation dir:", myFopInstallationDir)
+        .getPanel();
+    panel.setBorder(javax.swing.BorderFactory.createTitledBorder("FOP execution settings"));
+    return panel;
+  }
+
+  private JPanel createConfigPanel() {
+    JPanel configModeRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    configModeRow.add(myUsePluginConfig);
+    configModeRow.add(myUseEmptyConfig);
+    configModeRow.add(myUseConfigFile);
+
+    JPanel panel = FormBuilder.createFormBuilder()
+        .addComponent(configModeRow)
+        .addLabeledComponent("Use settings file:", myUserConfigLocation)
+        .getPanel();
+    panel.setBorder(javax.swing.BorderFactory.createTitledBorder("FOP configuration settings"));
+    return panel;
+  }
+
+  private void addStateUpdateDocumentListener(TextFieldWithBrowseButton field) {
+    field.getTextField().getDocument().addDocumentListener(new DocumentListener() {
+      @Override
+      public void insertUpdate(DocumentEvent e) {
+        updateComponentsState();
+      }
+
+      @Override
+      public void removeUpdate(DocumentEvent e) {
+        updateComponentsState();
+      }
+
+      @Override
+      public void changedUpdate(DocumentEvent e) {
+        updateComponentsState();
+      }
+    });
+  }
+
+  private void applyBundledFopVersionLabel() {
+    try {
+      String version = null;
+      java.io.InputStream is = XslFoRunConfigurationEditor.class.getClassLoader()
+          .getResourceAsStream("META-INF/xslfo/bundled-fop-version.txt");
+      if (is != null) {
+        try (java.io.BufferedReader br = new java.io.BufferedReader(
+            new java.io.InputStreamReader(is))) {
+          String line = br.readLine();
+          if (line != null && !line.trim().isEmpty()) {
+            version = line.trim();
+          }
+        }
+      }
+      myUseBundledFopRadio.setText("Use bundled FOP (" + (version == null ? "unknown" : version) + ")");
+    } catch (Throwable ignore) {
+      // Keep default text if version cannot be determined
+    }
+  }
+
   @Override
-  protected void resetEditorFrom(XslFoRunConfiguration s) {
-    var settings = s.getSettings();
+  protected void resetEditorFrom(XslFoRunConfiguration configuration) {
+    var settings = configuration.getSettings();
     myXsltFile.setText(
         settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() :
             null);
@@ -238,85 +256,45 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
         .filter(path -> path != null && !path.isBlank())
         .toList();
     myXmlInputFile.setXmlInputFiles(xmlInputs);
-    if (myOutputFile != null) {
-      myOutputFile.setText(settings.outputFile());
-    }
-    if (myOpenOutputFile != null) {
-      myOpenOutputFile.setSelected(settings.openOutputFile());
-    }
-    if (myUseTemporaryFiles != null) {
-      myUseTemporaryFiles.setSelected(settings.useTemporaryFiles());
-    }
+    myOutputFile.setText(settings.outputFile());
+    myOpenOutputFile.setSelected(settings.openOutputFile());
+    myUseTemporaryFiles.setSelected(settings.useTemporaryFiles());
 
-    // Output format
-    if (myUsePluginOutputFormatRadio != null
-        && myOutputFormatCombo != null
-        && myUseCustomOutputFormatRadio != null) {
-      if (settings.usePluginOutputFormat()) {
-        myUsePluginOutputFormatRadio.setSelected(true);
-        myUseCustomOutputFormatRadio.setSelected(false);
-      } else {
-        myUsePluginOutputFormatRadio.setSelected(false);
-        myUseCustomOutputFormatRadio.setSelected(true);
-      }
-      myOutputFormatCombo.setSelectedItem(settings.outputFormat());
+    if (settings.usePluginOutputFormat()) {
+      myUsePluginOutputFormatRadio.setSelected(true);
+      myUseCustomOutputFormatRadio.setSelected(false);
+    } else {
+      myUsePluginOutputFormatRadio.setSelected(false);
+      myUseCustomOutputFormatRadio.setSelected(true);
     }
-
-    // Refresh label to reflect plugin default output format
+    myOutputFormatCombo.setSelectedItem(settings.outputFormat());
     refreshPluginOutputFormatLabel();
 
-    // FOP execution selection
-    if (myUsePluginExecutionRadio != null && myUseBundledFopRadio != null &&
-        myUseBinaryFopRadio != null) {
-      switch (settings.executionMode()) {
-        case PLUGIN -> {
-          myUsePluginExecutionRadio.setSelected(true);
-          myUseBundledFopRadio.setSelected(false);
-          myUseBinaryFopRadio.setSelected(false);
-        }
-        case BUNDLED -> {
-          myUsePluginExecutionRadio.setSelected(false);
-          myUseBundledFopRadio.setSelected(true);
-          myUseBinaryFopRadio.setSelected(false);
-        }
-        case EXTERNAL -> {
-          myUsePluginExecutionRadio.setSelected(false);
-          myUseBundledFopRadio.setSelected(false);
-          myUseBinaryFopRadio.setSelected(true);
-        }
-        default -> {
-          // Unknown execution mode, keep current selection
-        }
+    switch (settings.executionMode()) {
+      case PLUGIN -> myUsePluginExecutionRadio.setSelected(true);
+      case BUNDLED -> myUseBundledFopRadio.setSelected(true);
+      case EXTERNAL -> myUseBinaryFopRadio.setSelected(true);
+      default -> {
+        // keep current selection
       }
     }
-    if (myFopInstallationDir != null) {
-      myFopInstallationDir.setText(settings.fopInstallationDirOverride());
-    }
+    myFopInstallationDir.setText(settings.fopInstallationDirOverride());
 
-    // FOP configuration source
-    if (myUsePluginConfig != null && myUseEmptyConfig != null && myUseConfigFile != null) {
-      switch (settings.configMode()) {
-        case PLUGIN -> {
-          myUsePluginConfig.setSelected(true);
-          if (myUserConfigLocation != null) {
-            myUserConfigLocation.setText("");
-          }
-        }
-        case EMPTY -> {
-          myUseEmptyConfig.setSelected(true);
-          if (myUserConfigLocation != null) {
-            myUserConfigLocation.setText("");
-          }
-        }
-        case FILE -> {
-          myUseConfigFile.setSelected(true);
-          if (myUserConfigLocation != null) {
-            myUserConfigLocation.setText(settings.configFilePath());
-          }
-        }
-        default -> {
-          // Unknown config mode, keep current selection
-        }
+    switch (settings.configMode()) {
+      case PLUGIN -> {
+        myUsePluginConfig.setSelected(true);
+        myUserConfigLocation.setText("");
+      }
+      case EMPTY -> {
+        myUseEmptyConfig.setSelected(true);
+        myUserConfigLocation.setText("");
+      }
+      case FILE -> {
+        myUseConfigFile.setSelected(true);
+        myUserConfigLocation.setText(settings.configFilePath());
+      }
+      default -> {
+        // keep current selection
       }
     }
 
@@ -324,52 +302,43 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
   }
 
   @Override
-  protected void applyEditorTo(XslFoRunConfiguration s) {
-    var settings = s.getSettings();
-    // Update via immutable with* methods
+  protected void applyEditorTo(XslFoRunConfiguration configuration) {
+    var settings = configuration.getSettings();
     if (myXsltFile.getText().isEmpty()) {
       settings = settings.withXsltFile(null);
     } else {
-      s.setXsltFile(myXsltFile.getText());
-      settings = s.getSettings();
+      configuration.setXsltFile(myXsltFile.getText());
+      settings = configuration.getSettings();
     }
-    List<String> xmlInputFiles = myXmlInputFile.getXmlInputFiles();
-    s.setXmlInputFiles(xmlInputFiles);
-    settings = s.getSettings();
+    configuration.setXmlInputFiles(myXmlInputFile.getXmlInputFiles());
+    settings = configuration.getSettings();
+
     settings = settings.withOutputFile(myOutputFile.getText())
         .withOpenOutputFile(myOpenOutputFile.isSelected())
-        .withUseTemporaryFiles(myUseTemporaryFiles.isSelected()).withExecutionMode(
-            myUsePluginExecutionRadio != null && myUsePluginExecutionRadio.isSelected()
-                ? org.intellij.lang.xslfo.run.ExecutionMode.PLUGIN :
-                (myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected()
-                    ? org.intellij.lang.xslfo.run.ExecutionMode.BUNDLED
-                    : org.intellij.lang.xslfo.run.ExecutionMode.EXTERNAL))
-        .withFopInstallationDirOverride(
-            myFopInstallationDir != null ? myFopInstallationDir.getText() : null);
+        .withUseTemporaryFiles(myUseTemporaryFiles.isSelected())
+        .withExecutionMode(myUsePluginExecutionRadio.isSelected() ? ExecutionMode.PLUGIN :
+            (myUseBundledFopRadio.isSelected() ? ExecutionMode.BUNDLED : ExecutionMode.EXTERNAL))
+        .withFopInstallationDirOverride(myFopInstallationDir.getText());
 
-    // Output format selection
-    if (myUsePluginOutputFormatRadio != null && myUsePluginOutputFormatRadio.isSelected()) {
+    if (myUsePluginOutputFormatRadio.isSelected()) {
       settings = settings.withUsePluginOutputFormat(true);
-    } else if (myUseCustomOutputFormatRadio != null && myUseCustomOutputFormatRadio.isSelected()) {
+    } else if (myUseCustomOutputFormatRadio.isSelected()) {
       settings = settings.withUsePluginOutputFormat(false).withOutputFormat(
-          myOutputFormatCombo != null
-              && myOutputFormatCombo.getSelectedItem() instanceof OutputFormat
-              ? (OutputFormat) myOutputFormatCombo.getSelectedItem() : OutputFormat.PDF);
+          myOutputFormatCombo.getSelectedItem() instanceof OutputFormat
+              ? (OutputFormat) myOutputFormatCombo.getSelectedItem()
+              : OutputFormat.PDF);
     }
 
-    // Config source
-    if (myUsePluginConfig != null && myUsePluginConfig.isSelected()) {
-      settings = settings.withConfigMode(SettingsFileMode.PLUGIN)
-          .withConfigFilePath(null);
-    } else if (myUseEmptyConfig != null && myUseEmptyConfig.isSelected()) {
-      settings = settings.withConfigMode(SettingsFileMode.EMPTY)
-          .withConfigFilePath(null);
-    } else { // FILE
+    if (myUsePluginConfig.isSelected()) {
+      settings = settings.withConfigMode(SettingsFileMode.PLUGIN).withConfigFilePath(null);
+    } else if (myUseEmptyConfig.isSelected()) {
+      settings = settings.withConfigMode(SettingsFileMode.EMPTY).withConfigFilePath(null);
+    } else {
       settings = settings.withConfigMode(SettingsFileMode.FILE)
-          .withConfigFilePath(myUserConfigLocation != null ? myUserConfigLocation.getText() : null);
+          .withConfigFilePath(myUserConfigLocation.getText());
     }
 
-    s.setSettings(settings);
+    configuration.setSettings(settings);
   }
 
   @NotNull
@@ -379,77 +348,51 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
   }
 
   private void refreshPluginOutputFormatLabel() {
-    if (myUsePluginOutputFormatRadio != null) {
-      org.intellij.lang.xslfo.XslFoSettings plugin =
-          org.intellij.lang.xslfo.XslFoSettings.getInstance();
-      org.intellij.lang.xslfo.run.OutputFormat fmt =
-          plugin != null ? plugin.getDefaultOutputFormat() :
-              org.intellij.lang.xslfo.run.OutputFormat.PDF;
-      String fmtText = fmt != null ? fmt.name() : "PDF";
-      myUsePluginOutputFormatRadio.setText(
-          "Use output format from plugin settings (" + fmtText + ")");
-    }
+    XslFoSettings plugin = XslFoSettings.getInstance();
+    OutputFormat format = plugin != null ? plugin.getDefaultOutputFormat() : OutputFormat.PDF;
+    myUsePluginOutputFormatRadio.setText(
+        "Use output format from plugin settings (" + (format != null ? format.name() : "PDF") + ")");
   }
 
   private void updateComponentsState() {
-    if (myUseTemporaryFiles != null && myOutputFile != null) {
-      myOutputFile.setEnabled(!myUseTemporaryFiles.isSelected());
+    myOutputFile.setEnabled(!myUseTemporaryFiles.isSelected());
+    myOpenOutputFile.setEnabled(!myUseTemporaryFiles.isSelected());
+    if (myUseTemporaryFiles.isSelected()) {
+      myOpenOutputFile.setSelected(true);
     }
-    if (myUseTemporaryFiles != null && myOpenOutputFile != null) {
-      myOpenOutputFile.setEnabled(!myUseTemporaryFiles.isSelected());
-      if (myUseTemporaryFiles.isSelected()) {
-        myOpenOutputFile.setSelected(true);
-      }
-    }
-    // Execution controls
-    boolean pluginSelected =
-        myUsePluginExecutionRadio != null && myUsePluginExecutionRadio.isSelected();
-    boolean bundledSelected = myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected();
-    boolean externalSelected = myUseBinaryFopRadio != null && myUseBinaryFopRadio.isSelected();
-    if (myFopInstallationDir != null) {
-      myFopInstallationDir.setEnabled(externalSelected);
-    }
-    if (myExternalFopInfoLabel != null) {
-      if (externalSelected) {
-        String dirToUse = myFopInstallationDir != null ? myFopInstallationDir.getText() : null;
-        String msg = (dirToUse == null || dirToUse.trim().isEmpty())
+
+    boolean pluginSelected = myUsePluginExecutionRadio.isSelected();
+    boolean externalSelected = myUseBinaryFopRadio.isSelected();
+    myFopInstallationDir.setEnabled(externalSelected);
+
+    if (externalSelected) {
+      String dir = myFopInstallationDir.getText();
+      String message = (dir == null || dir.trim().isEmpty())
+          ? "Using FOP from system PATH (command: 'fop')"
+          : "Using FOP from installation directory: " + dir.trim();
+      myExternalFopInfoLabel.setText(message);
+      myExternalFopInfoLabel.setVisible(true);
+    } else if (pluginSelected) {
+      XslFoSettings plugin = XslFoSettings.getInstance();
+      boolean pluginUsesExternal = plugin != null && !plugin.isUseBundledFop();
+      if (pluginUsesExternal) {
+        String dir = plugin.getFopInstallationDir();
+        String message = (dir == null || dir.trim().isEmpty())
             ? "Using FOP from system PATH (command: 'fop')"
-            : ("Using FOP from installation directory: " + dirToUse.trim());
-        myExternalFopInfoLabel.setText(msg);
+            : "Using FOP from installation directory: " + dir.trim();
+        myExternalFopInfoLabel.setText(message);
         myExternalFopInfoLabel.setVisible(true);
-      } else if (pluginSelected) {
-        org.intellij.lang.xslfo.XslFoSettings plugin =
-            org.intellij.lang.xslfo.XslFoSettings.getInstance();
-        boolean pluginUsesExternal = plugin != null && !plugin.isUseBundledFop();
-        if (pluginUsesExternal) {
-          String dirToUse = plugin.getFopInstallationDir();
-          String msg = (dirToUse == null || dirToUse.trim().isEmpty()) ?
-              "Using FOP from system PATH (command: 'fop')" :
-              ("Using FOP from installation directory: " + dirToUse.trim());
-          myExternalFopInfoLabel.setText(msg);
-          myExternalFopInfoLabel.setVisible(true);
-        } else {
-          myExternalFopInfoLabel.setText("");
-          myExternalFopInfoLabel.setVisible(false);
-        }
       } else {
         myExternalFopInfoLabel.setText("");
         myExternalFopInfoLabel.setVisible(false);
       }
-    }
-    // Config source controls
-    boolean fileMode = myUseConfigFile != null && myUseConfigFile.isSelected();
-    if (myUserConfigLocation != null) {
-      myUserConfigLocation.setEnabled(fileMode);
+    } else {
+      myExternalFopInfoLabel.setText("");
+      myExternalFopInfoLabel.setVisible(false);
     }
 
-    // Output format controls
-    boolean customOut =
-        myUseCustomOutputFormatRadio != null && myUseCustomOutputFormatRadio.isSelected();
-    if (myOutputFormatCombo != null) {
-      myOutputFormatCombo.setEnabled(customOut);
-    }
-    // Keep the plugin-format label up to date
+    myUserConfigLocation.setEnabled(myUseConfigFile.isSelected());
+    myOutputFormatCombo.setEnabled(myUseCustomOutputFormatRadio.isSelected());
     refreshPluginOutputFormatLabel();
   }
 }

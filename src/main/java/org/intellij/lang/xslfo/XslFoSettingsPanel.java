@@ -4,6 +4,8 @@ import com.intellij.icons.AllIcons;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.util.ui.FormBuilder;
+import org.intellij.lang.xslfo.run.OutputFormat;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
@@ -14,6 +16,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.awt.FlowLayout;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 
@@ -21,7 +24,7 @@ import java.awt.event.ComponentListener;
  * Settings panel for the global default settings for XSL-FO runs.
  */
 public class XslFoSettingsPanel {
-  private javax.swing.JComboBox<org.intellij.lang.xslfo.run.OutputFormat> myDefaultOutputFormat;
+  private JComboBox<OutputFormat> myDefaultOutputFormat;
   private JPanel myPanel;
   private TextFieldWithBrowseButton myFopInstallationDir;
   private TextFieldWithBrowseButton myUserConfigLocation;
@@ -32,24 +35,19 @@ public class XslFoSettingsPanel {
   private JRadioButton myUseBinaryFopRadio;
   private JLabel myBundledFopVersionLabel;
 
-  /**
-   * Creates new form XslFoSettingsPanel.
-   */
   public XslFoSettingsPanel() {
-    // populate output format combo
-    if (myDefaultOutputFormat != null) {
-      myDefaultOutputFormat.removeAllItems();
-      for (org.intellij.lang.xslfo.run.OutputFormat f : org.intellij.lang.xslfo.run.OutputFormat.values()) {
-        myDefaultOutputFormat.addItem(f);
-      }
+    buildUi();
+
+    myDefaultOutputFormat.removeAllItems();
+    for (OutputFormat f : OutputFormat.values()) {
+      myDefaultOutputFormat.addItem(f);
     }
-    // Replace deprecated addBrowseFolderListener with explicit chooser actions
+
     myFopInstallationDir.addActionListener(
         e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(
             FileChooserDescriptorFactory.createSingleFolderDescriptor(), null, null, file -> {
               if (file != null) {
-                myFopInstallationDir.setText(
-                    file.getPath().replace('/', java.io.File.separatorChar));
+                myFopInstallationDir.setText(file.getPath().replace('/', java.io.File.separatorChar));
               }
             }));
 
@@ -63,14 +61,59 @@ public class XslFoSettingsPanel {
               }
             }));
 
-    // group radio buttons and hook enable/disable
     ButtonGroup group = new ButtonGroup();
     group.add(myUseBundledFopRadio);
     group.add(myUseBinaryFopRadio);
     myUseBundledFopRadio.addActionListener(e -> updateEnabledStates());
     myUseBinaryFopRadio.addActionListener(e -> updateEnabledStates());
 
-    // set bundled FOP version text without relying on FOP classes at runtime
+    myUseBundledFopRadio.setText("Use bundled FOP (" + readBundledFopVersion() + ")");
+
+    myWarningLabel.setIcon(AllIcons.General.BalloonError);
+    MySettingsPanelChangeListener changeListener = new MySettingsPanelChangeListener();
+    myFopInstallationDir.getTextField().getDocument().addDocumentListener(changeListener);
+    myUserConfigLocation.getTextField().getDocument().addDocumentListener(changeListener);
+    myPanel.addComponentListener(changeListener);
+
+    updateEnabledStates();
+  }
+
+  private void buildUi() {
+    myUseBundledFopRadio = new JRadioButton("Use bundled FOP");
+    myUseBinaryFopRadio = new JRadioButton("Use FOP binary");
+    myBundledFopVersionLabel = new JLabel();
+    myFopInstallationDir = new TextFieldWithBrowseButton();
+    myUserConfigLocation = new TextFieldWithBrowseButton();
+    myDefaultOutputFormat = new JComboBox<>();
+    mySeparator = new JSeparator();
+    myWarningLabel = new JLabel();
+
+    JPanel engineRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    engineRow.add(myUseBundledFopRadio);
+    engineRow.add(myUseBinaryFopRadio);
+
+    JPanel configPanel = FormBuilder.createFormBuilder()
+        .addComponent(engineRow)
+        .addComponent(myBundledFopVersionLabel)
+        .addLabeledComponent("FOP installation directory (optional):", myFopInstallationDir)
+        .addLabeledComponent("User configuration file (optional):", myUserConfigLocation)
+        .addLabeledComponent("Default output format:", myDefaultOutputFormat)
+        .getPanel();
+    configPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("FOP Configuration"));
+
+    myValidationPanel = FormBuilder.createFormBuilder()
+        .addComponent(mySeparator)
+        .addComponent(myWarningLabel)
+        .getPanel();
+
+    myPanel = FormBuilder.createFormBuilder()
+        .addComponent(configPanel)
+        .addComponentFillVertically(new JPanel(), 0)
+        .addComponent(myValidationPanel)
+        .getPanel();
+  }
+
+  private String readBundledFopVersion() {
     String version = null;
     try {
       java.io.InputStream is = XslFoSettingsPanel.class.getClassLoader()
@@ -87,21 +130,7 @@ public class XslFoSettingsPanel {
     } catch (Throwable ignore) {
       // Ignore - use default version text if resource cannot be read
     }
-    if (version == null) {
-      version = "unknown";
-    }
-    if (myUseBundledFopRadio != null) {
-      myUseBundledFopRadio.setText("Use bundled FOP (" + version + ")");
-    }
-    // configure Settings Validation
-    myWarningLabel.setIcon(AllIcons.General.BalloonError);
-    MySettingsPanelChangeListener changeListener = new MySettingsPanelChangeListener();
-
-    myFopInstallationDir.getTextField().getDocument().addDocumentListener(changeListener);
-    myUserConfigLocation.getTextField().getDocument().addDocumentListener(changeListener);
-    myPanel.addComponentListener(changeListener);
-
-    updateEnabledStates();
+    return version == null ? "unknown" : version;
   }
 
   public JComponent getComponent() {
@@ -128,18 +157,13 @@ public class XslFoSettingsPanel {
     return myUseBundledFopRadio.isSelected();
   }
 
-  public org.intellij.lang.xslfo.run.OutputFormat getDefaultOutputFormat() {
-    Object sel = myDefaultOutputFormat != null ? myDefaultOutputFormat.getSelectedItem() : null;
-    return sel instanceof org.intellij.lang.xslfo.run.OutputFormat ?
-        (org.intellij.lang.xslfo.run.OutputFormat) sel :
-        org.intellij.lang.xslfo.run.OutputFormat.PDF;
+  public OutputFormat getDefaultOutputFormat() {
+    Object sel = myDefaultOutputFormat.getSelectedItem();
+    return sel instanceof OutputFormat ? (OutputFormat) sel : OutputFormat.PDF;
   }
 
-  public void setDefaultOutputFormat(org.intellij.lang.xslfo.run.OutputFormat fmt) {
-    if (myDefaultOutputFormat != null) {
-      myDefaultOutputFormat.setSelectedItem(
-          fmt == null ? org.intellij.lang.xslfo.run.OutputFormat.PDF : fmt);
-    }
+  public void setDefaultOutputFormat(OutputFormat fmt) {
+    myDefaultOutputFormat.setSelectedItem(fmt == null ? OutputFormat.PDF : fmt);
   }
 
   public void setUseBundledFopSelected(boolean useBundled) {
@@ -149,40 +173,30 @@ public class XslFoSettingsPanel {
   }
 
   private void updateEnabledStates() {
-    boolean bundled = myUseBundledFopRadio != null && myUseBundledFopRadio.isSelected();
-    // When bundled is selected, installation dir is irrelevant; keep user config available for both
+    boolean bundled = myUseBundledFopRadio.isSelected();
     myFopInstallationDir.setEnabled(!bundled);
-    if (myBundledFopVersionLabel != null) {
-      if (bundled) {
-        // Hide info when bundled is selected
-        myBundledFopVersionLabel.setVisible(false);
-        myBundledFopVersionLabel.setText("");
-      } else {
-        // Show info explaining how the binary FOP will be resolved
-        String dir = myFopInstallationDir.getText();
-        if (dir == null || dir.trim().isEmpty()) {
-          myBundledFopVersionLabel.setText("Using FOP from system PATH (command: 'fop')");
-        } else {
-          myBundledFopVersionLabel.setText("Using FOP from installation directory: " + dir.trim());
-        }
-        myBundledFopVersionLabel.setVisible(true);
-      }
+    if (bundled) {
+      myBundledFopVersionLabel.setVisible(false);
+      myBundledFopVersionLabel.setText("");
+    } else {
+      String dir = myFopInstallationDir.getText();
+      String text = (dir == null || dir.trim().isEmpty())
+          ? "Using FOP from system PATH (command: 'fop')"
+          : "Using FOP from installation directory: " + dir.trim();
+      myBundledFopVersionLabel.setText(text);
+      myBundledFopVersionLabel.setVisible(true);
     }
   }
 
   private String validateSettings() {
     String dir = myFopInstallationDir.getText();
-    if (dir != null && !dir.isEmpty()) {
-      if (XslFoUtils.findFopExecutable(dir) == null) {
-        return "<html><body><b>Error: </b>Selected FOP installation directory is invalid</body></html>";
-      }
+    if (dir != null && !dir.isEmpty() && XslFoUtils.findFopExecutable(dir) == null) {
+      return "<html><body><b>Error: </b>Selected FOP installation directory is invalid</body></html>";
     }
-    // No error if path is empty: the bundled FOP libraries will be used.
     return "";
   }
 
   private class MySettingsPanelChangeListener implements ComponentListener, DocumentListener {
-
     @Override
     public void componentShown(ComponentEvent e) {
       updateWarning();
@@ -220,9 +234,7 @@ public class XslFoSettingsPanel {
 
     private void updateWarning() {
       String errorMsg = validateSettings();
-
       if (errorMsg.isEmpty()) {
-        // no errors, hide validation panel
         mySeparator.setVisible(false);
         myWarningLabel.setVisible(false);
         myValidationPanel.setVisible(false);
@@ -232,7 +244,6 @@ public class XslFoSettingsPanel {
         myWarningLabel.setText(errorMsg);
         myValidationPanel.setVisible(true);
       }
-      // Also refresh binary info text/visibility when fields change
       updateEnabledStates();
     }
   }
