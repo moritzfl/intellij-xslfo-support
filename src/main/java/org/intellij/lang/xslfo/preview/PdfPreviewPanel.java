@@ -39,6 +39,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
+import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Component;
@@ -50,14 +51,18 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class PdfPreviewPanel extends JPanel {
+
+  private static final int RENDER_DEBOUNCE_MS = 250;
 
   private final Project project;
   private final VirtualFile file;
   private final PdfBoxViewerPanel myPdfViewerPanel = new PdfBoxViewerPanel();
   private final AtomicLong myRenderRequestCounter = new AtomicLong(0);
+  private final Timer myRenderDebounceTimer;
   private final JTabbedPane myResultTabs = new JTabbedPane();
   private final JTextArea myDiagnosticsArea = new JTextArea();
 
@@ -67,10 +72,13 @@ public class PdfPreviewPanel extends JPanel {
   private boolean myUpdatingXmlInputs;
   private File myRenderedPreviewFile;
   private MessageBusConnection mySaveListenerConnection;
+  private volatile Future<?> myRenderTask;
 
   public PdfPreviewPanel(Project project, VirtualFile file) {
     this.project = project;
     this.file = file;
+    myRenderDebounceTimer = new Timer(RENDER_DEBOUNCE_MS, e -> startRenderPreview());
+    myRenderDebounceTimer.setRepeats(false);
     initUI();
     registerAutoRefreshOnSave();
   }
@@ -114,13 +122,13 @@ public class PdfPreviewPanel extends JPanel {
         return;
       }
       updateXmlInputsForSelectedConfiguration();
-      renderPreviewAsync();
+      requestRenderPreviewDebounced();
     });
     myXmlInputCombo.addActionListener(e -> {
       if (myUpdatingXmlInputs) {
         return;
       }
-      renderPreviewAsync();
+      requestRenderPreviewDebounced();
     });
 
     updateXmlInputsForSelectedConfiguration();
@@ -185,7 +193,7 @@ public class PdfPreviewPanel extends JPanel {
     myResultTabs.addTab("Messages", new JScrollPane(myDiagnosticsArea));
 
     add(myResultTabs, BorderLayout.CENTER);
-    myPdfViewerPanel.setRefreshAction(this::renderPreviewAsync);
+    myPdfViewerPanel.setRefreshAction(this::requestRenderPreviewNow);
     scheduleInitialRender();
   }
 
@@ -238,7 +246,7 @@ public class PdfPreviewPanel extends JPanel {
     }
     RunDialog.editConfiguration(project, settings, "Edit Launch Configuration");
     updateXmlInputsForSelectedConfiguration();
-    renderPreviewAsync();
+    requestRenderPreviewDebounced();
   }
 
   private void goToSelectedXmlInput() {
@@ -323,7 +331,7 @@ public class PdfPreviewPanel extends JPanel {
             }
             ApplicationManager.getApplication().invokeLater(() -> {
               if (!project.isDisposed()) {
-                renderPreviewAsync();
+                requestRenderPreviewDebounced();
               }
             });
           }
@@ -366,7 +374,34 @@ public class PdfPreviewPanel extends JPanel {
         FileUtil.toSystemIndependentName(rightPath));
   }
 
-  private void renderPreviewAsync() {
+  private void requestRenderPreviewDebounced() {
+    scheduleRenderPreview(RENDER_DEBOUNCE_MS);
+  }
+
+  private void requestRenderPreviewNow() {
+    scheduleRenderPreview(0);
+  }
+
+  private void scheduleRenderPreview(int delayMillis) {
+    if (project.isDisposed()) {
+      return;
+    }
+    if (myConfigurationCombo == null || myXmlInputCombo == null) {
+      return;
+    }
+    if (delayMillis <= 0) {
+      if (myRenderDebounceTimer.isRunning()) {
+        myRenderDebounceTimer.stop();
+      }
+      startRenderPreview();
+      return;
+    }
+    myRenderDebounceTimer.setInitialDelay(delayMillis);
+    myRenderDebounceTimer.setDelay(delayMillis);
+    myRenderDebounceTimer.restart();
+  }
+
+  private void startRenderPreview() {
     if (project.isDisposed()) {
       return;
     }
@@ -390,17 +425,38 @@ public class PdfPreviewPanel extends JPanel {
       return;
     }
 
+    cancelRunningRenderTask();
     int preferredPageIndex = myPdfViewerPanel.getCurrentPageIndex();
     long requestId = myRenderRequestCounter.incrementAndGet();
     myPdfViewerPanel.showLoading("Rendering preview...");
     myDiagnosticsArea.setText("Rendering preview...");
 
-    ApplicationManager.getApplication().executeOnPooledThread(() -> {
+    myRenderTask = ApplicationManager.getApplication().executeOnPooledThread(() -> {
+      if (Thread.currentThread().isInterrupted()) {
+        return;
+      }
       XslFoPreviewRenderer.PreviewRenderResult renderResult =
           XslFoPreviewRenderer.renderPreview(selectedConfiguration, selectedXmlInput);
+      if (Thread.currentThread().isInterrupted()) {
+        deletePreviewFile(renderResult.outputFile());
+        return;
+      }
       ApplicationManager.getApplication().invokeLater(
-          () -> applyRenderResult(requestId, preferredPageIndex, renderResult));
+          () -> {
+            if (requestId == myRenderRequestCounter.get()) {
+              myRenderTask = null;
+            }
+            applyRenderResult(requestId, preferredPageIndex, renderResult);
+          });
     });
+  }
+
+  private void cancelRunningRenderTask() {
+    Future<?> task = myRenderTask;
+    if (task != null) {
+      task.cancel(true);
+      myRenderTask = null;
+    }
   }
 
   private void scheduleInitialRender() {
@@ -408,12 +464,12 @@ public class PdfPreviewPanel extends JPanel {
       return;
     }
     if (project.isInitialized()) {
-      renderPreviewAsync();
+      requestRenderPreviewNow();
       return;
     }
     StartupManager.getInstance(project).runAfterOpened(() -> {
       if (!project.isDisposed()) {
-        renderPreviewAsync();
+        requestRenderPreviewNow();
       }
     });
   }
@@ -526,7 +582,11 @@ public class PdfPreviewPanel extends JPanel {
   }
 
   public void dispose() {
+    if (myRenderDebounceTimer.isRunning()) {
+      myRenderDebounceTimer.stop();
+    }
     myRenderRequestCounter.incrementAndGet();
+    cancelRunningRenderTask();
     if (mySaveListenerConnection != null) {
       mySaveListenerConnection.disconnect();
       mySaveListenerConnection = null;

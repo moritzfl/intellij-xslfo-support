@@ -1,6 +1,7 @@
 package org.intellij.lang.xslfo.preview;
 
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.util.ui.JBUI;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -29,6 +30,8 @@ import java.awt.GridBagLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Lightweight PDFBox-based single-page viewer with standard page navigation controls.
@@ -72,6 +75,7 @@ public class PdfBoxViewerPanel extends JPanel {
   private final JLabel myPageCountLabel = new JLabel("/ 0");
   private final JComboBox<String> myZoomCombo = new JComboBox<>(ZOOM_LEVELS);
   private final JScrollPane myScrollPane = new JScrollPane(myPageLabel);
+  private final AtomicLong myPageRenderRequestCounter = new AtomicLong(0);
 
   private Runnable myRefreshAction = () -> {
   };
@@ -83,6 +87,7 @@ public class PdfBoxViewerPanel extends JPanel {
   private float myZoomFactor = 1.0f;
   private double myVerticalScrollRemainder;
   private double myHorizontalScrollRemainder;
+  private volatile Future<?> myPageRenderTask;
 
   public PdfBoxViewerPanel() {
     super(new BorderLayout());
@@ -205,7 +210,7 @@ public class PdfBoxViewerPanel extends JPanel {
       return;
     }
     myCurrentPage = Math.max(0, Math.min(preferredPageIndex, myPageCount - 1));
-    renderCurrentPage();
+    requestRenderCurrentPage();
   }
 
   public int getCurrentPageIndex() {
@@ -237,19 +242,54 @@ public class PdfBoxViewerPanel extends JPanel {
       return;
     }
     myCurrentPage = target;
-    try {
-      renderCurrentPage();
-    } catch (IOException e) {
-      showError("Could not render preview page: " + e.getMessage());
-    }
+    requestRenderCurrentPage();
   }
 
-  private void renderCurrentPage() throws IOException {
+  private void requestRenderCurrentPage() {
     if (myRenderer == null || myPageCount <= 0) {
       return;
     }
+    cancelPageRenderTask();
+    long requestId = myPageRenderRequestCounter.incrementAndGet();
+    int pageIndex = myCurrentPage;
     float dpi = BASE_RENDER_DPI * myZoomFactor;
-    BufferedImage pageImage = myRenderer.renderImageWithDPI(myCurrentPage, dpi);
+    PDFRenderer renderer = myRenderer;
+    myPageLabel.setIcon(null);
+    myPageLabel.setText("Rendering page...");
+    myPageField.setText(Integer.toString(pageIndex + 1));
+    myPageCountLabel.setText("/ " + myPageCount);
+    updateNavigationState();
+    myPageRenderTask = ApplicationManager.getApplication().executeOnPooledThread(() -> {
+      try {
+        BufferedImage pageImage = renderer.renderImageWithDPI(pageIndex, dpi);
+        if (Thread.currentThread().isInterrupted()) {
+          return;
+        }
+        ApplicationManager.getApplication().invokeLater(
+            () -> applyRenderedPage(requestId, renderer, pageIndex, pageImage, null));
+      } catch (Exception exception) {
+        if (Thread.currentThread().isInterrupted()) {
+          return;
+        }
+        ApplicationManager.getApplication().invokeLater(
+            () -> applyRenderedPage(requestId, renderer, pageIndex, null, exception));
+      }
+    });
+  }
+
+  private void applyRenderedPage(long requestId, PDFRenderer renderer, int pageIndex,
+                                 BufferedImage pageImage, Exception error) {
+    if (requestId != myPageRenderRequestCounter.get() || renderer != myRenderer) {
+      return;
+    }
+    myPageRenderTask = null;
+    if (error != null) {
+      String message = error.getMessage() == null ? error.getClass().getSimpleName() :
+          error.getMessage();
+      showError("Could not render preview page: " + message);
+      return;
+    }
+    myCurrentPage = pageIndex;
     myPageLabel.setIcon(new ImageIcon(pageImage));
     myPageLabel.setText(null);
     myPageField.setText(Integer.toString(myCurrentPage + 1));
@@ -257,6 +297,14 @@ public class PdfBoxViewerPanel extends JPanel {
     updateNavigationState();
     revalidate();
     repaint();
+  }
+
+  private void cancelPageRenderTask() {
+    Future<?> renderTask = myPageRenderTask;
+    if (renderTask != null) {
+      renderTask.cancel(true);
+      myPageRenderTask = null;
+    }
   }
 
   private void showStatus(String message) {
@@ -289,11 +337,7 @@ public class PdfBoxViewerPanel extends JPanel {
     if (myPageCount <= 0) {
       return;
     }
-    try {
-      renderCurrentPage();
-    } catch (IOException e) {
-      showError("Could not render preview page: " + e.getMessage());
-    }
+    requestRenderCurrentPage();
   }
 
   private static float parseZoomFactor(String zoomText) {
@@ -373,6 +417,8 @@ public class PdfBoxViewerPanel extends JPanel {
   }
 
   private void closeDocument() {
+    myPageRenderRequestCounter.incrementAndGet();
+    cancelPageRenderTask();
     myRenderer = null;
     myCurrentPdfFile = null;
     if (myDocument != null) {
