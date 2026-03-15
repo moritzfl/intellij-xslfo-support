@@ -5,10 +5,16 @@ import org.apache.fop.apps.Fop;
 import org.apache.fop.apps.FopConfParser;
 import org.apache.fop.apps.FopFactory;
 import org.apache.fop.apps.FopFactoryBuilder;
+import org.apache.fop.apps.io.InternalResourceResolver;
+import org.apache.fop.apps.io.NullSafeInternalResourceResolver;
+import org.apache.fop.events.EventFormatter;
+import org.apache.fop.events.EventListener;
+import org.apache.fop.events.model.EventSeverity;
 import org.intellij.lang.xslfo.XslFoSettings;
 import org.xml.sax.SAXException;
 
 import javax.xml.transform.Result;
+import javax.xml.transform.ErrorListener;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
@@ -19,6 +25,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +38,12 @@ final class BundledFopRunner {
   }
 
   static List<File> runFop(XslFoRunConfiguration config, File temporaryFile)
+      throws IOException, SAXException, TransformerException {
+    return runFop(config, temporaryFile, null);
+  }
+
+  static List<File> runFop(XslFoRunConfiguration config, File temporaryFile,
+                           RenderDiagnosticsSink diagnosticsSink)
       throws IOException, SAXException, TransformerException {
     // Ensure JAXP factories resolve to public Xerces implementations to avoid
     // java.xml internal access restrictions in the IntelliJ plugin classloader.
@@ -81,6 +94,12 @@ final class BundledFopRunner {
       fopFactory = builder.build();
     }
     FOUserAgent foUserAgent = fopFactory.newFOUserAgent();
+    installNullSafeResourceResolver(foUserAgent, diagnosticsSink);
+    if (diagnosticsSink != null) {
+      // Adding a listener prevents FOUserAgent from auto-attaching its LoggingEventListener.
+      foUserAgent.getEventBroadcaster().addEventListener(
+          createDiagnosticsEventListener(diagnosticsSink));
+    }
 
     List<File> outputs = new ArrayList<>();
     boolean multipleInputs = xmlPaths.size() > 1;
@@ -95,11 +114,14 @@ final class BundledFopRunner {
         Fop fop = fopFactory.newFop(fmt.mime(), foUserAgent, out);
 
         TransformerFactory factory = TransformerFactory.newInstance();
+        ErrorListener errorListener = createStrictErrorListener(diagnosticsSink);
+        factory.setErrorListener(errorListener);
 
         File xsltFile = new File(xslPath);
         StreamSource xsltSource = new StreamSource(xsltFile);
         xsltSource.setSystemId(xsltFile.toURI().toString());
         Transformer transformer = factory.newTransformer(xsltSource);
+        transformer.setErrorListener(errorListener);
 
         File xmlFile = new File(xmlPath);
         StreamSource xmlSource = new StreamSource(xmlFile);
@@ -111,6 +133,73 @@ final class BundledFopRunner {
       outputs.add(outFile);
     }
     return List.copyOf(outputs);
+  }
+
+  private static ErrorListener createStrictErrorListener(RenderDiagnosticsSink diagnosticsSink) {
+    return new ErrorListener() {
+      @Override
+      public void warning(TransformerException exception) {
+        if (diagnosticsSink != null && exception != null && exception.getMessage() != null) {
+          diagnosticsSink.warning(exception.getMessage());
+        }
+      }
+
+      @Override
+      public void error(TransformerException exception) throws TransformerException {
+        if (diagnosticsSink != null && exception != null && exception.getMessage() != null) {
+          diagnosticsSink.error(exception.getMessage());
+        }
+        throw exception;
+      }
+
+      @Override
+      public void fatalError(TransformerException exception) throws TransformerException {
+        if (diagnosticsSink != null && exception != null && exception.getMessage() != null) {
+          diagnosticsSink.error(exception.getMessage());
+        }
+        throw exception;
+      }
+    };
+  }
+
+  private static EventListener createDiagnosticsEventListener(RenderDiagnosticsSink sink) {
+    return event -> {
+      if (event == null) {
+        return;
+      }
+      String formatted = EventFormatter.format(event);
+      if (formatted == null || formatted.isBlank()) {
+        return;
+      }
+      EventSeverity severity = event.getSeverity();
+      if (severity == EventSeverity.WARN) {
+        sink.warning(formatted);
+      } else if (severity == EventSeverity.ERROR || severity == EventSeverity.FATAL) {
+        sink.error(formatted);
+      }
+    };
+  }
+
+  private static void installNullSafeResourceResolver(FOUserAgent foUserAgent,
+                                                      RenderDiagnosticsSink diagnosticsSink) {
+    try {
+      Field resolverField = FOUserAgent.class.getDeclaredField("resourceResolver");
+      resolverField.setAccessible(true);
+      Object resolver = resolverField.get(foUserAgent);
+      if (!(resolver instanceof InternalResourceResolver internalResolver)) {
+        return;
+      }
+      InternalResourceResolver wrapped =
+          NullSafeInternalResourceResolver.wrap(internalResolver);
+      if (wrapped != null && wrapped != internalResolver) {
+        resolverField.set(foUserAgent, wrapped);
+      }
+    } catch (Throwable throwable) {
+      if (diagnosticsSink != null) {
+        diagnosticsSink.warning("Could not install null-safe resource resolver: "
+            + throwable.getClass().getSimpleName());
+      }
+    }
   }
 
   static OutputFormat getEffectiveOutputFormat(XslFoRunConfiguration config) {
@@ -150,5 +239,11 @@ final class BundledFopRunner {
     } catch (Throwable ignored) {
       return null;
     }
+  }
+
+  interface RenderDiagnosticsSink {
+    void warning(String message);
+
+    void error(String message);
   }
 }

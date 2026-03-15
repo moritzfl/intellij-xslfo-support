@@ -48,6 +48,7 @@ tasks.register<Copy>("initConfig") {
 }
 
 val fopVersion = "2.11"
+val pdfboxVersion = "3.0.7"
 
 dependencies {
     intellijPlatform {
@@ -55,6 +56,7 @@ dependencies {
         plugin("XPathView:243.22562.13")
     }
     implementation("org.apache.xmlgraphics:fop:$fopVersion")
+    implementation("org.apache.pdfbox:pdfbox:$pdfboxVersion")
     implementation("xerces:xercesImpl:2.12.2")
 
     testImplementation("junit:junit:4.13.2")

@@ -60,6 +60,7 @@ public class PdfPreviewFileEditor extends UserDataHolderBase implements FileEdit
 
   @Override
   public void dispose() {
+    panel.dispose();
   }
 
   @Override
