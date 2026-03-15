@@ -10,7 +10,7 @@ import com.intellij.openapi.util.IconLoader;
  */
 public class XslFoIcons {
   private static Icon load() {
-    return IconLoader.getIcon("/icons/fop-logo-16x16.png", XslFoIcons.class);
+    return IconLoader.getIcon("/icons/fop-logo-compact.svg", XslFoIcons.class);
   }
 
   public static final Icon FopLogo = load();
