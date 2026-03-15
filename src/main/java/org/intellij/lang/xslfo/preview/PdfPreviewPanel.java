@@ -7,6 +7,9 @@ import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.impl.RunDialog;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.fileEditor.FileDocumentManagerListener;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
@@ -16,6 +19,7 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.ui.JBUI;
+import com.intellij.util.messages.MessageBusConnection;
 import icons.XslFoIcons;
 import org.intellij.lang.xslfo.run.XslFoRunConfigType;
 import org.intellij.lang.xslfo.run.XslFoPreviewRenderer;
@@ -62,11 +66,13 @@ public class PdfPreviewPanel extends JPanel {
   private JButton myGoToXmlButton;
   private boolean myUpdatingXmlInputs;
   private File myRenderedPreviewFile;
+  private MessageBusConnection mySaveListenerConnection;
 
   public PdfPreviewPanel(Project project, VirtualFile file) {
     this.project = project;
     this.file = file;
     initUI();
+    registerAutoRefreshOnSave();
   }
 
   private void initUI() {
@@ -305,8 +311,66 @@ public class PdfPreviewPanel extends JPanel {
     repaint();
   }
 
+  private void registerAutoRefreshOnSave() {
+    mySaveListenerConnection = project.getMessageBus().connect();
+    mySaveListenerConnection.subscribe(FileDocumentManagerListener.TOPIC,
+        new FileDocumentManagerListener() {
+          @Override
+          public void afterDocumentSaved(Document document) {
+            VirtualFile savedFile = FileDocumentManager.getInstance().getFile(document);
+            if (savedFile == null || !isRelevantSavedFile(savedFile)) {
+              return;
+            }
+            ApplicationManager.getApplication().invokeLater(() -> {
+              if (!project.isDisposed()) {
+                renderPreviewAsync();
+              }
+            });
+          }
+        });
+  }
+
+  private boolean isRelevantSavedFile(VirtualFile savedFile) {
+    if (savedFile.equals(file)) {
+      return true;
+    }
+    if (myConfigurationCombo == null) {
+      return false;
+    }
+    XslFoRunConfiguration selected =
+        (XslFoRunConfiguration) myConfigurationCombo.getSelectedItem();
+    if (selected == null) {
+      return false;
+    }
+
+    String savedPath = FileUtil.toSystemIndependentName(savedFile.getPath());
+    String xsltPath = selected.getSettings().getXsltFilePointer() != null
+        ? selected.getSettings().getXsltFilePointer().getPresentableUrl()
+        : null;
+    if (isSamePath(savedPath, xsltPath)) {
+      return true;
+    }
+
+    return selected.getSettings().getXmlInputFilesPointers().stream()
+        .map(pointer -> pointer != null ? pointer.getPresentableUrl() : null)
+        .filter(path -> path != null && !path.isBlank())
+        .anyMatch(path -> isSamePath(savedPath, path));
+  }
+
+  private static boolean isSamePath(String leftPath, String rightPath) {
+    if (leftPath == null || rightPath == null) {
+      return false;
+    }
+    return FileUtil.pathsEqual(
+        FileUtil.toSystemIndependentName(leftPath),
+        FileUtil.toSystemIndependentName(rightPath));
+  }
+
   private void renderPreviewAsync() {
     if (project.isDisposed()) {
+      return;
+    }
+    if (myConfigurationCombo == null || myXmlInputCombo == null) {
       return;
     }
     if (!project.isInitialized()) {
@@ -463,6 +527,10 @@ public class PdfPreviewPanel extends JPanel {
 
   public void dispose() {
     myRenderRequestCounter.incrementAndGet();
+    if (mySaveListenerConnection != null) {
+      mySaveListenerConnection.disconnect();
+      mySaveListenerConnection = null;
+    }
     myPdfViewerPanel.dispose();
     deletePreviewFile(myRenderedPreviewFile);
     myRenderedPreviewFile = null;
