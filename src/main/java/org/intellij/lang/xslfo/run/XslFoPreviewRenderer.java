@@ -4,9 +4,6 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.process.ProcessOutput;
 import com.intellij.execution.util.ExecUtil;
-import com.intellij.openapi.vfs.VirtualFile;
-import org.intellij.lang.xslfo.XslFoSettings;
-import org.intellij.lang.xslfo.XslFoUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -103,8 +100,11 @@ public final class XslFoPreviewRenderer {
                                            @NotNull File outputFile,
                                            @NotNull List<PreviewRenderMessage> messages)
       throws IOException, ExecutionException {
-    GeneralCommandLine commandLine =
-        buildExternalCommandLine(configuration, xmlInputPath, outputFile.getAbsolutePath());
+    GeneralCommandLine commandLine = ExternalFopCommandLineBuilder.build(
+        configuration,
+        xmlInputPath,
+        outputFile.getAbsolutePath(),
+        OutputFormat.PDF);
     ProcessOutput processOutput = ExecUtil.execAndGetOutput(commandLine);
     collectExternalDiagnostics(processOutput, messages);
     if (processOutput.getExitCode() != 0) {
@@ -137,60 +137,6 @@ public final class XslFoPreviewRenderer {
         addMessage(messages, Severity.ERROR, trimmed);
       }
     }
-  }
-
-  private static @NotNull GeneralCommandLine buildExternalCommandLine(
-      @NotNull XslFoRunConfiguration configuration,
-      @NotNull String xmlInputPath,
-      @NotNull String outputPath) throws IOException {
-    GeneralCommandLine commandLine = new GeneralCommandLine();
-    commandLine.setExePath(resolveFopExecutablePath(configuration));
-
-    String userConfig = resolveUserConfig(configuration);
-    VirtualFile userConfigFile = XslFoUtils.findFopUserConfig(userConfig);
-    if (userConfigFile != null) {
-      commandLine.addParameters("-c", userConfigFile.getPath());
-    }
-
-    String xsltPath = configuration.getSettings().getXsltFilePointer() != null
-        ? configuration.getSettings().getXsltFilePointer().getPresentableUrl()
-        : null;
-    if (xsltPath == null || xsltPath.isBlank()) {
-      throw new IOException("No XSLT file selected");
-    }
-
-    commandLine.addParameters("-xml", xmlInputPath);
-    commandLine.addParameters("-xsl", xsltPath);
-    commandLine.addParameter(OutputFormat.PDF.cliSwitch());
-    commandLine.addParameter(outputPath);
-    return commandLine;
-  }
-
-  private static @NotNull String resolveFopExecutablePath(
-      @NotNull XslFoRunConfiguration configuration) {
-    String installationDir;
-    ExecutionMode mode = configuration.getSettings().executionMode();
-    if (mode == ExecutionMode.PLUGIN) {
-      XslFoSettings settings = XslFoSettings.getInstance();
-      installationDir = settings != null ? settings.getFopInstallationDir() : null;
-    } else {
-      installationDir = configuration.getSettings().fopInstallationDirOverride();
-    }
-
-    VirtualFile executable = XslFoUtils.findFopExecutable(installationDir);
-    if (executable != null) {
-      return executable.getPath();
-    }
-    return "fop";
-  }
-
-  private static String resolveUserConfig(@NotNull XslFoRunConfiguration configuration) {
-    XslFoSettings pluginSettings = XslFoSettings.getInstance();
-    return switch (configuration.getSettings().configMode()) {
-      case PLUGIN -> pluginSettings != null ? pluginSettings.getUserConfigLocation() : null;
-      case FILE -> configuration.getSettings().configFilePath();
-      case EMPTY -> null;
-    };
   }
 
   private static boolean containsNullResourceUriError(@NotNull Throwable throwable) {

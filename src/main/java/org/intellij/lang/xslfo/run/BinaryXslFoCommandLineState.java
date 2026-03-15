@@ -1,6 +1,5 @@
 package org.intellij.lang.xslfo.run;
 
-import com.intellij.execution.CantRunException;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.CommandLineState;
 import com.intellij.execution.configurations.GeneralCommandLine;
@@ -17,13 +16,11 @@ import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import org.intellij.lang.xslfo.XslFoSettings;
-import org.intellij.lang.xslfo.XslFoUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.List;
 
 /**
  * Execution state that runs FOP as an external process from the command line.
@@ -31,7 +28,6 @@ import java.util.List;
  */
 public class BinaryXslFoCommandLineState extends CommandLineState {
 
-  private final XslFoSettings mySettings = XslFoSettings.getInstance();
   private final XslFoRunConfiguration myXslFoRunConfiguration;
   private final File temporaryFile;
 
@@ -107,67 +103,10 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
   }
 
   protected GeneralCommandLine buildCommandLine() throws ExecutionException {
-    GeneralCommandLine commandLine = new GeneralCommandLine();
-    String installDir;
-    ExecutionMode mode = myXslFoRunConfiguration.getSettings().executionMode();
-    if (mode == ExecutionMode.PLUGIN) {
-      installDir = mySettings != null ? mySettings.getFopInstallationDir() : null;
-    } else {
-      installDir = myXslFoRunConfiguration.getSettings().fopInstallationDirOverride();
-    }
-    VirtualFile fopExecutablePath = XslFoUtils.findFopExecutable(installDir);
-    if (fopExecutablePath != null) {
-      commandLine.setExePath(fopExecutablePath.getPath());
-    } else {
-      // No installation dir configured; use FOP from PATH
-      commandLine.setExePath("fop");
-    }
-
-    String userConfig;
-    assert mySettings != null;
-    switch (myXslFoRunConfiguration.getSettings().configMode()) {
-      case PLUGIN -> userConfig = mySettings.getUserConfigLocation();
-      case EMPTY -> userConfig = null;
-      case FILE -> userConfig = myXslFoRunConfiguration.getSettings().configFilePath();
-      default -> userConfig = null;
-    }
-    VirtualFile fopUserConfig = XslFoUtils.findFopUserConfig(userConfig);
-    if (fopUserConfig != null) {
-      commandLine.addParameters("-c", fopUserConfig.getPath());
-    }
-
-    // XML
-    List<String> xmlInputs = myXslFoRunConfiguration.getSettings().getXmlInputFilesPointers().stream()
-        .map(pointer -> pointer != null ? pointer.getPresentableUrl() : null)
-        .filter(path -> path != null && !path.isBlank())
-        .toList();
-
-    if (xmlInputs.isEmpty()) {
-      throw new CantRunException("No XML input file selected");
-    }
-
-    if (xmlInputs.size() > 1) {
-      throw new CantRunException(
-          "Multiple XML input files are currently supported only with bundled FOP execution mode");
-    }
-    commandLine.addParameters("-xml", xmlInputs.get(0));
-
-    // XSL
-    String xslt = myXslFoRunConfiguration.getSettings().getXsltFilePointer() != null
-        ? myXslFoRunConfiguration.getSettings().getXsltFilePointer().getPresentableUrl()
-        : null;
-    if (xslt == null || xslt.isEmpty()) {
-      throw new CantRunException("No XSLT file selected");
-    }
-    commandLine.addParameters("-xsl", xslt);
-
-    // OUTPUT FORMAT (use effective format)
-    OutputFormat fmt = getEffectiveOutputFormat();
-    commandLine.addParameter(fmt.cliSwitch());
-
-    // OUT FILE
-    commandLine.addParameter(getOutputFilePath());
-    return commandLine;
+    return ExternalFopCommandLineBuilder.buildForConfiguredSingleInput(
+        myXslFoRunConfiguration,
+        getOutputFilePath(),
+        getEffectiveOutputFormat());
   }
 
   private String getOutputFilePath() {
