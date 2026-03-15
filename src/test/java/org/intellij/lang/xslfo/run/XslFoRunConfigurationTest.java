@@ -4,6 +4,8 @@ import com.intellij.openapi.project.Project;
 import org.jdom.Element;
 import org.junit.Test;
 
+import java.io.File;
+
 import static org.intellij.lang.xslfo.run.XslFoRunExecutorTestHelper.setXmlPointer;
 import static org.intellij.lang.xslfo.run.XslFoRunExecutorTestHelper.setXsltPointer;
 import static org.junit.Assert.*;
@@ -116,7 +118,11 @@ public class XslFoRunConfigurationTest {
         setXsltPointer(config);
         XslFoRunExecutorTestHelper.setXmlPointers(config, "/tmp/input1.xml", "/tmp/input2.xml");
         config.setUseTemporaryFiles(false);
-        config.setOutputFile("/tmp/outputfolder");
+        File outputDir = new File(System.getProperty("java.io.tmpdir"),
+            "xslfo-multi-output-" + System.nanoTime());
+        assertTrue(outputDir.mkdirs() || outputDir.isDirectory());
+        outputDir.deleteOnExit();
+        config.setOutputFile(outputDir.getAbsolutePath());
 
         try {
             config.checkConfiguration();
@@ -140,7 +146,25 @@ public class XslFoRunConfigurationTest {
             config.checkConfiguration();
             fail("Expected RuntimeConfigurationError when multiple XML inputs but output is a file, not a folder");
         } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("folder"));
+            assertTrue(ex.getMessage().contains("directory"));
+        }
+    }
+
+    @Test
+    public void checkConfiguration_acceptsMultipleXmlInputsWithNewDirectoryPathEndingWithSeparator() {
+        Project project = XslFoRunExecutorTestHelper.createTestProject();
+        XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
+        XslFoRunConfiguration config = new XslFoRunConfiguration(project, factory);
+
+        setXsltPointer(config);
+        XslFoRunExecutorTestHelper.setXmlPointers(config, "/tmp/input1.xml", "/tmp/input2.xml");
+        config.setUseTemporaryFiles(false);
+        config.setOutputFile(System.getProperty("java.io.tmpdir") + File.separator + "xslfo-new-output-dir" + File.separator);
+
+        try {
+            config.checkConfiguration();
+        } catch (Exception e) {
+            fail("checkConfiguration should pass for new output directory paths ending with separator: " + e);
         }
     }
 }

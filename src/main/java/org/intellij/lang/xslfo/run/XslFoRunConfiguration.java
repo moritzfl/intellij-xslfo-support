@@ -82,25 +82,27 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
             "'Save to file' path must not be empty when not writing to a temporary file");
       }
       if (xmlInputPaths.size() > 1) {
-        if (!isDirectoryPath(out.trim())) {
-          throw new RuntimeConfigurationError(
-              "When multiple XML input files are selected, output must be a folder");
-        }
+        validateOutputDirectoryForMultipleInputs(out.trim());
       }
     }
   }
 
-  private static boolean isDirectoryPath(@NotNull String path) {
+  private static void validateOutputDirectoryForMultipleInputs(@NotNull String path)
+      throws RuntimeConfigurationError {
     File output = new File(path);
     if (output.exists()) {
-      return output.isDirectory();
+      if (!output.isDirectory()) {
+        throw new RuntimeConfigurationError(
+            "When multiple XML input files are selected, output path must be a directory");
+      }
+      return;
     }
-    String normalized = path.trim();
-    if (normalized.endsWith(File.separator) || normalized.endsWith("/")) {
-      return true;
+    if (path.endsWith(File.separator) || path.endsWith("/")) {
+      return;
     }
-    String fileName = output.getName();
-    return !fileName.contains(".");
+    throw new RuntimeConfigurationError(
+        "When multiple XML input files are selected, output path must be an existing directory "
+            + "or end with a path separator to indicate a new directory");
   }
 
   @NotNull
