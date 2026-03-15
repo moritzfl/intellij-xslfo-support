@@ -130,7 +130,7 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     }
     if (myUserConfigLocation != null) {
       FileChooserDescriptor fileDescriptor =
-          FileChooserDescriptorFactory.createSingleFileDescriptor();
+          new FileChooserDescriptor(true, false, false, false, false, true);
       myUserConfigLocation.addActionListener(
           e -> com.intellij.openapi.fileChooser.FileChooser.chooseFile(fileDescriptor, myProject,
               null, file -> {

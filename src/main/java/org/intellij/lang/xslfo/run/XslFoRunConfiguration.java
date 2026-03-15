@@ -70,14 +70,15 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     if (xml == null || xml.isEmpty()) {
       throw new RuntimeConfigurationError("No XML input file selected");
     }
-  // If temporary file is not selected, the 'Save to file' path must be provided (used for final destination)
-        if (!settings.useTemporaryFiles()) {
-            String out = settings.outputFile();
-            if (out == null || out.trim().isEmpty()) {
-                throw new RuntimeConfigurationError("'Save to file' path must not be empty when not writing to a temporary file");
-            }
-        }
+    // If temporary file is not selected, the 'Save to file' path must be provided (used for final destination)
+    if (!settings.useTemporaryFiles()) {
+      String out = settings.outputFile();
+      if (out == null || out.trim().isEmpty()) {
+        throw new RuntimeConfigurationError(
+            "'Save to file' path must not be empty when not writing to a temporary file");
+      }
     }
+  }
 
   @NotNull
   @Override
@@ -293,10 +294,6 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     settings = settings.withXsltFile(ptr);
   }
 
-  public void setXsltFile(@NotNull VirtualFilePointer pointer) {
-    settings = settings.withXsltFile(pointer);
-  }
-
   @Nullable
   public String getXsltFile() {
     return settings.getXsltFilePointer() != null ?
@@ -325,15 +322,6 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     settings = settings.withXmlInputFile(ptr);
   }
 
-  public void setXmlInputFile(@NotNull VirtualFilePointer pointer) {
-    settings = settings.withXmlInputFile(pointer);
-  }
-
-  @Nullable
-  public String getXmlInputFile() {
-    return settings.getXmlInputFilePointer() != null ?
-        settings.getXmlInputFilePointer().getPresentableUrl() : null;
-  }
 
   @Nullable
   public VirtualFile findXmlInputFile() {
@@ -341,28 +329,16 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
         null;
   }
 
-  public boolean isOpenOutputFile() {
-    return settings.openOutputFile();
-  }
 
   public void setOpenOutputFile(boolean openOutputFile) {
     this.settings = this.settings.withOpenOutputFile(openOutputFile);
   }
-
-  public String getOutputFile() {
-    return settings.outputFile();
-  }
-
   public void setOutputFile(String outputFile) {
     this.settings = this.settings.withOutputFile(outputFile);
   }
 
   public void setUseTemporaryFiles(boolean useTemporaryFiles) {
     this.settings = this.settings.withUseTemporaryFiles(useTemporaryFiles);
-  }
-
-  public boolean isUseTemporaryFiles() {
-    return settings.useTemporaryFiles();
   }
 
   /**

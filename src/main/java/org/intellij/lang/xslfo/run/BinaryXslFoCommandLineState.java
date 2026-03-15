@@ -5,9 +5,9 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.CommandLineState;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.process.OSProcessHandler;
-import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
+import com.intellij.execution.process.ProcessListener;
 import com.intellij.execution.process.ProcessTerminatedListener;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.notification.NotificationGroupManager;
@@ -77,7 +77,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
 
     ProcessTerminatedListener.attach(processHandler);
     final XslFoRunConfiguration runConfiguration = myXslFoRunConfiguration;
-    processHandler.addProcessListener(new ProcessAdapter() {
+    processHandler.addProcessListener(new ProcessListener() {
       private final XslFoRunConfiguration myXsltRunConfiguration = runConfiguration;
 
       @Override
@@ -127,6 +127,7 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     }
 
     String userConfig;
+    assert mySettings != null;
     switch (myXslFoRunConfiguration.getSettings().configMode()) {
       case PLUGIN -> userConfig = mySettings.getUserConfigLocation();
       case EMPTY -> userConfig = null;
