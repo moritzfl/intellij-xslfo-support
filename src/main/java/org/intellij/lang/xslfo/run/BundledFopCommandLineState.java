@@ -18,8 +18,11 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * CommandLineState replacement that runs Apache FOP in-process using bundled libraries.
@@ -29,6 +32,9 @@ class BundledFopCommandLineState extends CommandLineState {
     private final XslFoRunConfiguration config;
     private final File temporaryFile;
     private volatile List<File> generatedOutputFiles = List.of();
+    private volatile ExecutorService executionExecutor;
+    private volatile Future<?> runningTask;
+    private volatile Thread workerThread;
 
     BundledFopCommandLineState(@NotNull XslFoRunConfiguration config, @NotNull ExecutionEnvironment environment) {
         super(environment);
@@ -48,41 +54,86 @@ class BundledFopCommandLineState extends CommandLineState {
     @NotNull
     @Override
     protected ProcessHandler startProcess() {
-        InProcessFopProcessHandler handler = new InProcessFopProcessHandler();
+        InProcessFopProcessHandler handler = new InProcessFopProcessHandler(this::cancelExecution);
 
         // Run transformation on a background thread to avoid blocking UI
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(() -> {
+        executionExecutor = executor;
+        runningTask = executor.submit(() -> {
             int exitCode = 0;
             try {
+                workerThread = Thread.currentThread();
+                if (handler.isCancellationRequested() || Thread.currentThread().isInterrupted()) {
+                    exitCode = 130;
+                    return;
+                }
                 // Show a popup notification indicating which FOP is used (bundled)
                 NotificationGroupManager.getInstance().getNotificationGroup("XSL-FO").createNotification("Using FOP (bundled, in-process)", NotificationType.INFORMATION).notify(config.getProject());
                 runFop();
             } catch (Throwable t) {
-                exitCode = 1;
-                // Log full stack trace to console instead of letting it bubble to the IDE
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                t.printStackTrace(pw);
-                pw.flush();
-                handler.notifyTextAvailable(sw.toString(), ProcessOutputTypes.STDERR);
-                String message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-                NotificationGroupManager.getInstance()
-                    .getNotificationGroup("XSL-FO")
-                    .createNotification("Bundled FOP execution failed: " + message,
-                        NotificationType.ERROR)
-                    .notify(config.getProject());
-            } finally {
-                handler.notifyProcessTerminated(exitCode);
-                if (exitCode == 0) {
-                    SwingUtilities.invokeLater(this::afterProcessSucceeded);
+                if (isCancellationThrowable(t, handler)) {
+                    exitCode = 130;
+                    if (t instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
+                } else {
+                    exitCode = 1;
+                    // Log full stack trace to console instead of letting it bubble to the IDE
+                    StringWriter sw = new StringWriter();
+                    PrintWriter pw = new PrintWriter(sw);
+                    t.printStackTrace(pw);
+                    pw.flush();
+                    handler.notifyTextAvailable(sw.toString(), ProcessOutputTypes.STDERR);
+                    String message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+                    NotificationGroupManager.getInstance()
+                        .getNotificationGroup("XSL-FO")
+                        .createNotification("Bundled FOP execution failed: " + message,
+                            NotificationType.ERROR)
+                        .notify(config.getProject());
                 }
+            } finally {
+                workerThread = null;
+                boolean cancelled = handler.isCancellationRequested();
+                if (!cancelled) {
+                    handler.notifyProcessTerminated(exitCode);
+                    if (exitCode == 0) {
+                        SwingUtilities.invokeLater(() -> {
+                            if (!handler.isCancellationRequested()) {
+                                afterProcessSucceeded();
+                            }
+                        });
+                    }
+                }
+                runningTask = null;
+                executionExecutor = null;
                 executor.shutdown();
             }
         });
 
         handler.startNotify();
         return handler;
+    }
+
+    private void cancelExecution() {
+        Future<?> task = runningTask;
+        if (task != null) {
+            task.cancel(true);
+        }
+        Thread thread = workerThread;
+        if (thread != null) {
+            thread.interrupt();
+        }
+        ExecutorService executor = executionExecutor;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+
+    private static boolean isCancellationThrowable(@NotNull Throwable throwable,
+                                                   @NotNull InProcessFopProcessHandler handler) {
+        return handler.isCancellationRequested()
+            || throwable instanceof InterruptedException
+            || throwable instanceof CancellationException;
     }
 
     private void afterProcessSucceeded() {
@@ -146,12 +197,19 @@ class BundledFopCommandLineState extends CommandLineState {
      * Minimal in-memory ProcessHandler to integrate with Run tool window lifecycle.
      */
     private static class InProcessFopProcessHandler extends com.intellij.execution.process.ProcessHandler {
+        private final Runnable cancellationCallback;
+        private final AtomicBoolean cancellationRequested = new AtomicBoolean(false);
         private volatile boolean terminated = false;
+        private volatile boolean terminating = false;
+
+        private InProcessFopProcessHandler(@NotNull Runnable cancellationCallback) {
+            this.cancellationCallback = cancellationCallback;
+        }
 
         @Override
         protected void destroyProcessImpl() {
-            // No real process to destroy
-            notifyProcessTerminated(0);
+            requestCancellation();
+            notifyProcessTerminated(130);
         }
 
         @Override
@@ -176,7 +234,7 @@ class BundledFopCommandLineState extends CommandLineState {
 
         @Override
         public boolean isProcessTerminating() {
-            return terminated;
+            return terminating && !terminated;
         }
 
         @Override
@@ -185,7 +243,20 @@ class BundledFopCommandLineState extends CommandLineState {
                 return;
             }
             terminated = true;
+            terminating = false;
             super.notifyProcessTerminated(exitCode);
+        }
+
+        boolean isCancellationRequested() {
+            return cancellationRequested.get();
+        }
+
+        private void requestCancellation() {
+            if (!cancellationRequested.compareAndSet(false, true)) {
+                return;
+            }
+            terminating = true;
+            cancellationCallback.run();
         }
     }
 }

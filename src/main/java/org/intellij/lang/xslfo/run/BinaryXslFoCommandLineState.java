@@ -20,7 +20,6 @@ import org.intellij.lang.xslfo.XslFoSettings;
 import org.intellij.lang.xslfo.XslFoUtils;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.SwingUtilities;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -66,9 +65,18 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
             return commandLine.getCharset();
           }
         };
+
+    ProcessTerminatedListener.attach(processHandler);
+    processHandler.addProcessListener(new ProcessListener() {
+      @Override
+      public void processTerminated(final @NotNull ProcessEvent event) {
+        ApplicationManager.getApplication().invokeLater(() -> handleProcessTerminated(event));
+      }
+    });
+    processHandler.startNotify();
+
     // Show a popup notification indicating which FOP is used (external)
     String exePath = commandLine.getExePath();
-    processHandler.startNotify();
     String msg =
         "Using FOP (external): " + ("fop".equalsIgnoreCase(exePath) ? "fop (from PATH)" : exePath);
     NotificationGroupManager.getInstance()
@@ -76,38 +84,26 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
         .createNotification(msg, NotificationType.INFORMATION)
         .notify(myXslFoRunConfiguration.getProject());
 
-    ProcessTerminatedListener.attach(processHandler);
-    final XslFoRunConfiguration runConfiguration = myXslFoRunConfiguration;
-    processHandler.addProcessListener(new ProcessListener() {
-      private final XslFoRunConfiguration myXsltRunConfiguration = runConfiguration;
-
-      @Override
-      public void processTerminated(final @NotNull ProcessEvent event) {
-        Runnable runnable = () -> {
-          Runnable runnable1 = () -> {
-            if (event.getExitCode() == 0) {
-              if (myXsltRunConfiguration.getSettings().openOutputFile()) {
-                final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
-                final VirtualFile fileByUrl = VirtualFileManager
-                    .getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
-                if (fileByUrl != null) {
-                  fileByUrl.refresh(true,
-                      false,
-                      () -> FopExecutionHelper.openFileInEditor(myXsltRunConfiguration.getProject(),
-                          fileByUrl));
-                  return;
-                }
-              }
-              VirtualFileManager.getInstance().asyncRefresh(null);
-            }
-          };
-          ApplicationManager.getApplication().runWriteAction(runnable1);
-        };
-        SwingUtilities.invokeLater(runnable);
-      }
-    });
-
     return processHandler;
+  }
+
+  private void handleProcessTerminated(@NotNull ProcessEvent event) {
+    if (event.getExitCode() != 0 || myXslFoRunConfiguration.getProject().isDisposed()) {
+      return;
+    }
+    if (myXslFoRunConfiguration.getSettings().openOutputFile()) {
+      final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
+      final VirtualFile fileByUrl = VirtualFileManager
+          .getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
+      if (fileByUrl != null) {
+        fileByUrl.refresh(true,
+            false,
+            () -> FopExecutionHelper.openFileInEditor(myXslFoRunConfiguration.getProject(),
+                fileByUrl));
+        return;
+      }
+    }
+    VirtualFileManager.getInstance().asyncRefresh(null);
   }
 
   protected GeneralCommandLine buildCommandLine() throws ExecutionException {
