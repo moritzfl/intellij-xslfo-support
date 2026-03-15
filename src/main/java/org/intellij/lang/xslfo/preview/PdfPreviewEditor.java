@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 public class PdfPreviewEditor extends TextEditorWithPreview {
 
   public PdfPreviewEditor(@NotNull Project project, @NotNull VirtualFile virtualFile) {
-    super(createTextEditor(project, virtualFile), new PdfPreviewFileEditor(virtualFile), "XSL-FO");
+    super(createTextEditor(project, virtualFile), new PdfPreviewFileEditor(project, virtualFile), "XSL-FO");
   }
 
   private static @NotNull TextEditor createTextEditor(@NotNull Project project,

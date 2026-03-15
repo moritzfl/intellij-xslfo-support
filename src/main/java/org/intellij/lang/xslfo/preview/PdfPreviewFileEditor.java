@@ -2,6 +2,7 @@ package org.intellij.lang.xslfo.preview;
 
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorState;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.UserDataHolderBase;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NonNls;
@@ -15,9 +16,9 @@ public class PdfPreviewFileEditor extends UserDataHolderBase implements FileEdit
   private final VirtualFile file;
   private final PdfPreviewPanel panel;
 
-  public PdfPreviewFileEditor(@NotNull VirtualFile file) {
+  public PdfPreviewFileEditor(@NotNull Project project, @NotNull VirtualFile file) {
     this.file = file;
-    this.panel = new PdfPreviewPanel(file.getPath());
+    this.panel = new PdfPreviewPanel(project, file);
   }
 
   @Override
