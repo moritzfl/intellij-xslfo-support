@@ -49,4 +49,12 @@ public final class XslFoRunExecutorTestHelper {
     static void setXmlPointer(XslFoRunConfiguration cfg) {
         cfg.setSettings(cfg.getSettings().withXmlInputFile(new FakeVirtualFilePointer("/tmp/dummy.xml")));
     }
+
+    static void setXmlPointers(XslFoRunConfiguration cfg, String... xmlPaths) {
+        java.util.List<VirtualFilePointer> pointers = new java.util.ArrayList<>();
+        for (String path : xmlPaths) {
+            pointers.add(new FakeVirtualFilePointer(path));
+        }
+        cfg.setSettings(cfg.getSettings().withXmlInputFiles(pointers));
+    }
 }

@@ -106,4 +106,41 @@ public class XslFoRunConfigurationTest {
         assertTrue(config2.getSettings().openOutputFile());
         assertTrue(config2.getSettings().useTemporaryFiles());
     }
+
+    @Test
+    public void checkConfiguration_validatesMultipleXmlInputsWithFolderOutput() {
+        Project project = XslFoRunExecutorTestHelper.createTestProject();
+        XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
+        XslFoRunConfiguration config = new XslFoRunConfiguration(project, factory);
+
+        setXsltPointer(config);
+        XslFoRunExecutorTestHelper.setXmlPointers(config, "/tmp/input1.xml", "/tmp/input2.xml");
+        config.setUseTemporaryFiles(false);
+        config.setOutputFile("/tmp/outputfolder");
+
+        try {
+            config.checkConfiguration();
+        } catch (Exception e) {
+            fail("checkConfiguration should pass when output is a folder for multiple inputs: " + e);
+        }
+    }
+
+    @Test
+    public void checkConfiguration_rejectsMultipleXmlInputsWithFileOutput() {
+        Project project = XslFoRunExecutorTestHelper.createTestProject();
+        XslFoConfigurationFactory factory = XslFoRunExecutorTestHelper.createTestFactory();
+        XslFoRunConfiguration config = new XslFoRunConfiguration(project, factory);
+
+        setXsltPointer(config);
+        XslFoRunExecutorTestHelper.setXmlPointers(config, "/tmp/input1.xml", "/tmp/input2.xml");
+        config.setUseTemporaryFiles(false);
+        config.setOutputFile("/tmp/singlefile.pdf");
+
+        try {
+            config.checkConfiguration();
+            fail("Expected RuntimeConfigurationError when multiple XML inputs but output is a file, not a folder");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("folder"));
+        }
+    }
 }

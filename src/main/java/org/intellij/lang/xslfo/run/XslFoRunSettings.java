@@ -4,6 +4,9 @@ import com.intellij.openapi.vfs.pointers.VirtualFilePointer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -15,6 +18,7 @@ import java.util.Objects;
  */
 public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
                                @Nullable VirtualFilePointer xmlInputFile,
+                               @NotNull List<VirtualFilePointer> xmlInputFiles,
                                @Nullable String outputFile,
                                boolean openOutputFile,
                                boolean useTemporaryFiles,
@@ -28,14 +32,20 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
                                boolean usePluginOutputFormat,
                                @NotNull OutputFormat outputFormat) implements Cloneable {
 
+  public XslFoRunSettings {
+    xmlInputFiles = xmlInputFiles == null ? List.of() : List.copyOf(xmlInputFiles);
+  }
+
   public @NotNull XslFoRunSettings withUsePluginOutputFormat(boolean value) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile,
+        openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath, value, outputFormat);
   }
 
   public @NotNull XslFoRunSettings withOutputFormat(@NotNull OutputFormat format) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile,
+        openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, format);
@@ -46,63 +56,85 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
   }
 
   public @Nullable VirtualFilePointer getXmlInputFilePointer() {
-    return xmlInputFile;
+    if (xmlInputFile != null) {
+      return xmlInputFile;
+    }
+    return xmlInputFiles.isEmpty() ? null : xmlInputFiles.get(0);
+  }
+
+  public @NotNull List<VirtualFilePointer> getXmlInputFilesPointers() {
+    if (!xmlInputFiles.isEmpty()) {
+      return xmlInputFiles;
+    }
+    return xmlInputFile == null ? List.of() : List.of(xmlInputFile);
   }
 
   public XslFoRunSettings withXsltFile(@Nullable VirtualFilePointer newXslt) {
-    return new XslFoRunSettings(newXslt, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(newXslt, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, outputFormat);
   }
 
   public XslFoRunSettings withXmlInputFile(@Nullable VirtualFilePointer newXml) {
-    return new XslFoRunSettings(xsltFile, newXml, outputFile, openOutputFile, useTemporaryFiles,
+    return new XslFoRunSettings(xsltFile, newXml,
+        newXml == null ? List.of() : List.of(newXml), outputFile, openOutputFile, useTemporaryFiles,
+        executionMode, fopInstallationDirOverride, configMode, configFilePath,
+        usePluginOutputFormat, outputFormat);
+  }
+
+  public XslFoRunSettings withXmlInputFiles(@NotNull List<VirtualFilePointer> newXmls) {
+    List<VirtualFilePointer> copy = new ArrayList<>(newXmls);
+    VirtualFilePointer primary = copy.isEmpty() ? null : copy.get(0);
+    return new XslFoRunSettings(xsltFile, primary, Collections.unmodifiableList(copy), outputFile,
+        openOutputFile, useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, outputFormat);
   }
 
   public XslFoRunSettings withOutputFile(@Nullable String newOutput) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, newOutput, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, newOutput, openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, outputFormat);
   }
 
   public XslFoRunSettings withOpenOutputFile(boolean newOpen) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, newOpen, useTemporaryFiles,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, newOpen,
+        useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, outputFormat);
   }
 
   public XslFoRunSettings withUseTemporaryFiles(boolean newUseTemp) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile, newUseTemp,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
+        newUseTemp,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, outputFormat);
   }
 
   public XslFoRunSettings withFopInstallationDirOverride(@Nullable String dir) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
         useTemporaryFiles,
         executionMode, dir, configMode, configFilePath, usePluginOutputFormat, outputFormat);
   }
 
   public XslFoRunSettings withExecutionMode(@NotNull ExecutionMode mode) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
         useTemporaryFiles,
         mode, fopInstallationDirOverride, configMode, configFilePath, usePluginOutputFormat,
         outputFormat);
   }
 
   public XslFoRunSettings withConfigMode(@NotNull SettingsFileMode mode) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, mode, configFilePath, usePluginOutputFormat,
         outputFormat);
   }
 
   public XslFoRunSettings withConfigFilePath(@Nullable String path) {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, path, usePluginOutputFormat,
         outputFormat);
@@ -114,7 +146,7 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
    * Note: VirtualFilePointer references are not duplicated and will be shared in the clone.
    */
   public @NotNull XslFoRunSettings clone() {
-    return new XslFoRunSettings(xsltFile, xmlInputFile, outputFile, openOutputFile,
+    return new XslFoRunSettings(xsltFile, xmlInputFile, xmlInputFiles, outputFile, openOutputFile,
         useTemporaryFiles,
         executionMode, fopInstallationDirOverride, configMode, configFilePath,
         usePluginOutputFormat, outputFormat);
@@ -133,6 +165,7 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
         && executionMode == that.executionMode
         && Objects.equals(xsltFile, that.xsltFile)
         && Objects.equals(xmlInputFile, that.xmlInputFile)
+        && Objects.equals(xmlInputFiles, that.xmlInputFiles)
         && Objects.equals(outputFile, that.outputFile)
         && Objects.equals(fopInstallationDirOverride, that.fopInstallationDirOverride)
         && configMode == that.configMode
@@ -146,6 +179,7 @@ public record XslFoRunSettings(@Nullable VirtualFilePointer xsltFile,
     return "XslFoRunSettings{" +
         "xsltFile=" + (xsltFile != null ? xsltFile.getPresentableUrl() : "null") +
         ", xmlInputFile=" + (xmlInputFile != null ? xmlInputFile.getPresentableUrl() : "null") +
+        ", xmlInputFiles=" + xmlInputFiles.stream().map(p -> p != null ? p.getPresentableUrl() : "null").toList() +
         ", outputFile='" + outputFile + '\'' +
         ", openOutputFile=" + openOutputFile +
         ", useTemporaryFiles=" + useTemporaryFiles +

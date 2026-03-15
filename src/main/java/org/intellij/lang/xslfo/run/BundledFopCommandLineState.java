@@ -6,33 +6,18 @@ import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
-import com.intellij.openapi.vfs.VfsUtilCore;
+import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileManager;
-import org.apache.fop.apps.FOUserAgent;
-import org.apache.fop.apps.Fop;
-import org.apache.fop.apps.FopConfParser;
-import org.apache.fop.apps.FopFactory;
-import org.apache.fop.apps.FopFactoryBuilder;
-import org.intellij.lang.xslfo.XslFoSettings;
 import org.jetbrains.annotations.NotNull;
-import org.xml.sax.SAXException;
 
 import javax.swing.SwingUtilities;
-import javax.xml.transform.Result;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.sax.SAXResult;
-import javax.xml.transform.stream.StreamSource;
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -43,13 +28,14 @@ class BundledFopCommandLineState extends CommandLineState {
 
     private final XslFoRunConfiguration config;
     private final File temporaryFile;
+    private volatile List<File> generatedOutputFiles = List.of();
 
     BundledFopCommandLineState(@NotNull XslFoRunConfiguration config, @NotNull ExecutionEnvironment environment) {
         super(environment);
         this.config = config;
         if (config.getSettings().useTemporaryFiles()) {
             try {
-                OutputFormat fmt = getEffectiveOutputFormat();
+                OutputFormat fmt = BundledFopRunner.getEffectiveOutputFormat(config);
                 temporaryFile = File.createTempFile("fo_", fmt.extension());
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -80,9 +66,17 @@ class BundledFopCommandLineState extends CommandLineState {
                 t.printStackTrace(pw);
                 pw.flush();
                 handler.notifyTextAvailable(sw.toString(), ProcessOutputTypes.STDERR);
+                String message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+                NotificationGroupManager.getInstance()
+                    .getNotificationGroup("XSL-FO")
+                    .createNotification("Bundled FOP execution failed: " + message,
+                        NotificationType.ERROR)
+                    .notify(config.getProject());
             } finally {
-                int finalExitCode = exitCode;
-                SwingUtilities.invokeLater(() -> afterProcessTerminated(handler, finalExitCode));
+                handler.notifyProcessTerminated(exitCode);
+                if (exitCode == 0) {
+                    SwingUtilities.invokeLater(this::afterProcessSucceeded);
+                }
                 executor.shutdown();
             }
         });
@@ -91,104 +85,61 @@ class BundledFopCommandLineState extends CommandLineState {
         return handler;
     }
 
-    private void afterProcessTerminated(InProcessFopProcessHandler handler, int exitCode) {
-        handler.notifyProcessTerminated(exitCode);
-        if (exitCode == 0) {
-            // replicate open-output behavior
-            if (config.getSettings().openOutputFile()) {
-                final String url = VfsUtilCore.pathToUrl(getOutputFilePath());
-                final VirtualFile fileByUrl = VirtualFileManager.getInstance().refreshAndFindFileByUrl(url.replace(File.separatorChar, '/'));
-                if (fileByUrl != null) {
-                    fileByUrl.refresh(true, false, () -> FopExecutionHelper.openFileInEditor(config.getProject(), fileByUrl));
-                    return;
+    private void afterProcessSucceeded() {
+        try {
+            LocalFileSystem fileSystem = LocalFileSystem.getInstance();
+            List<VirtualFile> generatedVirtualFiles = new java.util.ArrayList<>();
+            for (File outputFile : generatedOutputFiles) {
+                VirtualFile virtualOutput = fileSystem.refreshAndFindFileByIoFile(outputFile);
+                if (virtualOutput != null && !virtualOutput.isDirectory()) {
+                    generatedVirtualFiles.add(virtualOutput);
                 }
             }
-            VirtualFileManager.getInstance().asyncRefresh(null);
+
+            if (!generatedVirtualFiles.isEmpty()) {
+                if (config.getSettings().openOutputFile()) {
+                    for (VirtualFile generatedVirtualFile : generatedVirtualFiles) {
+                        FopExecutionHelper.openFileInEditor(config.getProject(), generatedVirtualFile);
+                    }
+                }
+                return;
+            }
+
+            File fallbackFile = getFallbackOutputFile();
+            if (fallbackFile == null) {
+                return;
+            }
+            VirtualFile fallbackVirtualFile = fileSystem.refreshAndFindFileByIoFile(fallbackFile);
+            if (fallbackVirtualFile != null && !fallbackVirtualFile.isDirectory()
+                && config.getSettings().openOutputFile()) {
+                FopExecutionHelper.openFileInEditor(config.getProject(), fallbackVirtualFile);
+            }
+        } catch (Throwable t) {
+            String message = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XSL-FO")
+                .createNotification("Opening generated output failed: " + message,
+                    NotificationType.WARNING)
+                .notify(config.getProject());
         }
     }
 
-    private void runFop() throws IOException, SAXException, TransformerException {
-        // Ensure JAXP factories resolve to public Xerces implementations to avoid
-        // java.xml internal access restrictions in the IntelliJ plugin classloader.
-        try {
-            // Clear any stale overrides first
-            System.clearProperty("javax.xml.parsers.SAXParserFactory");
-            System.clearProperty("javax.xml.parsers.DocumentBuilderFactory");
-            System.clearProperty("org.xml.sax.driver");
-            // Set to public Xerces implementations (provided by xercesImpl dependency)
-            System.setProperty("javax.xml.parsers.SAXParserFactory", "org.apache.xerces.jaxp.SAXParserFactoryImpl");
-            System.setProperty("javax.xml.parsers.DocumentBuilderFactory", "org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
-        } catch (SecurityException ignored) {
-            // If properties cannot be set, proceed; FOP/Batik may still use defaults.
+    private File getFallbackOutputFile() {
+        String outputPath = getOutputFilePath();
+        if (outputPath == null || outputPath.isBlank()) {
+            return null;
         }
+        File output = new File(outputPath);
+        return output.exists() ? output : output.getParentFile();
+    }
 
-        String xmlPath = config.getSettings().getXmlInputFilePointer() != null ? config.getSettings().getXmlInputFilePointer().getPresentableUrl() : null;
-        String xslPath = config.getSettings().getXsltFilePointer() != null ? config.getSettings().getXsltFilePointer().getPresentableUrl() : null;
-        if (xmlPath == null || xmlPath.isEmpty()) {
-          throw new IOException("No XML input file selected");
-        }
-        if (xslPath == null || xslPath.isEmpty()) {
-          throw new IOException("No XSLT file selected");
-        }
-
-        File outFile = new File(getOutputFilePath());
-        // ensure parent dir exists
-        File parent = outFile.getParentFile();
-        if (parent != null) {
-          parent.mkdirs();
-        }
-
-        // Configure FOP factory; optionally load user config if present
-        XslFoSettings pluginSettings = XslFoSettings.getInstance();
-        String userConfig;
-        switch (config.getSettings().configMode()) {
-            case PLUGIN -> userConfig = pluginSettings != null ? pluginSettings.getUserConfigLocation() : null;
-            case FILE -> userConfig = config.getSettings().configFilePath();
-            default -> userConfig = null;
-        }
-        FopFactory fopFactory;
-        if (userConfig != null && !userConfig.isEmpty()) {
-            FopConfParser parser = new FopConfParser(new File(userConfig));
-            FopFactoryBuilder builder = parser.getFopFactoryBuilder();
-            fopFactory = builder.build();
-        } else {
-            FopFactoryBuilder builder = new FopFactoryBuilder(new File(".").toURI());
-            fopFactory = builder.build();
-        }
-        FOUserAgent foUserAgent = fopFactory.newFOUserAgent();
-
-        try (OutputStream out = new BufferedOutputStream(new FileOutputStream(outFile))) {
-            OutputFormat fmt = getEffectiveOutputFormat();
-            Fop fop = fopFactory.newFop(fmt.mime(), foUserAgent, out);
-
-            TransformerFactory factory = TransformerFactory.newInstance();
-
-            File xsltFile = new File(xslPath);
-            StreamSource xsltSource = new StreamSource(xsltFile);
-            xsltSource.setSystemId(xsltFile.toURI().toString());
-            Transformer transformer = factory.newTransformer(xsltSource);
-
-            File xmlFile = new File(xmlPath);
-            StreamSource xmlSource = new StreamSource(xmlFile);
-            xmlSource.setSystemId(xmlFile.toURI().toString());
-
-            Result res = new SAXResult(fop.getDefaultHandler());
-            transformer.transform(xmlSource, res);
-        }
+    private void runFop() throws Exception {
+        generatedOutputFiles = BundledFopRunner.runFop(config, temporaryFile);
     }
 
     private String getOutputFilePath() {
         String out = config.getSettings().outputFile();
         return (temporaryFile != null) ? temporaryFile.getAbsolutePath() : out;
-    }
-
-    private OutputFormat getEffectiveOutputFormat() {
-        XslFoRunSettings s = config.getSettings();
-        if (s.usePluginOutputFormat()) {
-            XslFoSettings plugin = XslFoSettings.getInstance();
-            return plugin != null ? plugin.getDefaultOutputFormat() : OutputFormat.PDF;
-        }
-        return s.outputFormat();
     }
 
     /**
@@ -230,6 +181,9 @@ class BundledFopCommandLineState extends CommandLineState {
 
         @Override
         public void notifyProcessTerminated(int exitCode) {
+            if (terminated) {
+                return;
+            }
             terminated = true;
             super.notifyProcessTerminated(exitCode);
         }

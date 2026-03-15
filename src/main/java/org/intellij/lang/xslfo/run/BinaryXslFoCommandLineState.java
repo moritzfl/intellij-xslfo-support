@@ -24,6 +24,7 @@ import javax.swing.SwingUtilities;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.List;
 
 /**
  * Execution state that runs FOP as an external process from the command line.
@@ -140,13 +141,20 @@ public class BinaryXslFoCommandLineState extends CommandLineState {
     }
 
     // XML
-    String xmlInput = myXslFoRunConfiguration.getSettings().getXmlInputFilePointer() != null
-        ? myXslFoRunConfiguration.getSettings().getXmlInputFilePointer().getPresentableUrl()
-        : null;
-    if (xmlInput == null || xmlInput.isEmpty()) {
+    List<String> xmlInputs = myXslFoRunConfiguration.getSettings().getXmlInputFilesPointers().stream()
+        .map(pointer -> pointer != null ? pointer.getPresentableUrl() : null)
+        .filter(path -> path != null && !path.isBlank())
+        .toList();
+
+    if (xmlInputs.isEmpty()) {
       throw new CantRunException("No XML input file selected");
     }
-    commandLine.addParameters("-xml", xmlInput);
+
+    if (xmlInputs.size() > 1) {
+      throw new CantRunException(
+          "Multiple XML input files are currently supported only with bundled FOP execution mode");
+    }
+    commandLine.addParameters("-xml", xmlInputs.get(0));
 
     // XSL
     String xslt = myXslFoRunConfiguration.getSettings().getXsltFilePointer() != null

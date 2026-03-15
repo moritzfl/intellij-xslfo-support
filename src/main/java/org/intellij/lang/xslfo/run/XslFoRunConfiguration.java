@@ -29,6 +29,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Run configuration for executing XSL-FO transformations using Apache FOP.
@@ -43,7 +45,7 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
   private String mySuggestedName;
 
   private XslFoRunSettings settings =
-      new XslFoRunSettings(null, null, null, false, false, ExecutionMode.PLUGIN, null,
+      new XslFoRunSettings(null, null, List.of(), null, false, false, ExecutionMode.PLUGIN, null,
           SettingsFileMode.PLUGIN, null, true, org.intellij.lang.xslfo.run.OutputFormat.PDF);
 
   public XslFoRunConfiguration(Project project, ConfigurationFactory factory) {
@@ -65,9 +67,11 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     if (xslt == null || xslt.isEmpty()) {
       throw new RuntimeConfigurationError("No XSLT file selected");
     }
-    String xml = settings.getXmlInputFilePointer() != null ?
-        settings.getXmlInputFilePointer().getPresentableUrl() : null;
-    if (xml == null || xml.isEmpty()) {
+    List<String> xmlInputPaths = settings.getXmlInputFilesPointers().stream()
+        .map(pointer -> pointer != null ? pointer.getPresentableUrl() : null)
+        .filter(path -> path != null && !path.isBlank())
+        .toList();
+    if (xmlInputPaths.isEmpty()) {
       throw new RuntimeConfigurationError("No XML input file selected");
     }
     // If temporary file is not selected, the 'Save to file' path must be provided (used for final destination)
@@ -77,7 +81,26 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
         throw new RuntimeConfigurationError(
             "'Save to file' path must not be empty when not writing to a temporary file");
       }
+      if (xmlInputPaths.size() > 1) {
+        if (!isDirectoryPath(out.trim())) {
+          throw new RuntimeConfigurationError(
+              "When multiple XML input files are selected, output must be a folder");
+        }
+      }
     }
+  }
+
+  private static boolean isDirectoryPath(@NotNull String path) {
+    File output = new File(path);
+    if (output.exists()) {
+      return output.isDirectory();
+    }
+    String normalized = path.trim();
+    if (normalized.endsWith(File.separator) || normalized.endsWith("/")) {
+      return true;
+    }
+    String fileName = output.getName();
+    return !fileName.contains(".");
   }
 
   @NotNull
@@ -136,6 +159,7 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
 
     VirtualFilePointer xslt = null;
     VirtualFilePointer xml = null;
+    List<VirtualFilePointer> xmlFiles = new ArrayList<>();
     String outPath = null;
     boolean openOut = false;
     boolean useTemp = false;
@@ -157,7 +181,19 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
       final String url = e.getAttributeValue("url");
       if (url != null) {
         xml = VirtualFilePointerManager.getInstance().create(url, getProject(), null);
+        xmlFiles.add(xml);
       }
+    }
+    e = element.getChild("XmlFiles");
+    if (e != null) {
+      xmlFiles.clear();
+      for (Element child : e.getChildren("XmlFile")) {
+        String url = child.getAttributeValue("url");
+        if (url != null && !url.isEmpty()) {
+          xmlFiles.add(VirtualFilePointerManager.getInstance().create(url, getProject(), null));
+        }
+      }
+      xml = xmlFiles.isEmpty() ? null : xmlFiles.get(0);
     }
 
     e = element.getChild("OutputFile");
@@ -231,7 +267,8 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     }
 
     settings =
-        new XslFoRunSettings(xslt, xml, outPath, openOut, useTemp, executionMode, fopDirOverride,
+        new XslFoRunSettings(xslt, xml, xmlFiles, outPath, openOut, useTemp, executionMode,
+            fopDirOverride,
             configMode, configFilePath, usePluginOutputFormat, outputFormat);
   }
 
@@ -248,6 +285,18 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     if (settings.getXmlInputFilePointer() != null) {
       e.setAttribute("url", settings.getXmlInputFilePointer().getUrl());
       element.addContent(e);
+    }
+    Element xmlFilesElement = new Element("XmlFiles");
+    for (VirtualFilePointer pointer : settings.getXmlInputFilesPointers()) {
+      if (pointer == null || pointer.getUrl() == null) {
+        continue;
+      }
+      Element xmlEntry = new Element("XmlFile");
+      xmlEntry.setAttribute("url", pointer.getUrl());
+      xmlFilesElement.addContent(xmlEntry);
+    }
+    if (!xmlFilesElement.getChildren().isEmpty()) {
+      element.addContent(xmlFilesElement);
     }
     e = new Element("OutputFile");
     if (settings.outputFile() != null) {
@@ -322,11 +371,40 @@ public class XslFoRunConfiguration extends LocatableConfigurationBase<XslFoRunSe
     settings = settings.withXmlInputFile(ptr);
   }
 
+  public void setXmlInputFiles(@NotNull List<String> xmlInputFiles) {
+    List<VirtualFilePointer> pointers = new ArrayList<>();
+    for (String xmlInputFile : xmlInputFiles) {
+      if (xmlInputFile == null || xmlInputFile.trim().isEmpty()) {
+        continue;
+      }
+      VirtualFilePointer ptr = VirtualFilePointerManager.getInstance()
+          .create(VfsUtilCore.pathToUrl(xmlInputFile.trim()).replace(File.separatorChar, '/'),
+              getProject(), null);
+      pointers.add(ptr);
+    }
+    settings = settings.withXmlInputFiles(pointers);
+  }
+
 
   @Nullable
   public VirtualFile findXmlInputFile() {
     return settings.getXmlInputFilePointer() != null ? settings.getXmlInputFilePointer().getFile() :
         null;
+  }
+
+  @NotNull
+  public List<VirtualFile> findXmlInputFiles() {
+    List<VirtualFile> files = new ArrayList<>();
+    for (VirtualFilePointer pointer : settings.getXmlInputFilesPointers()) {
+      if (pointer == null) {
+        continue;
+      }
+      VirtualFile file = pointer.getFile();
+      if (file != null) {
+        files.add(file);
+      }
+    }
+    return files;
   }
 
 

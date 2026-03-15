@@ -1,14 +1,10 @@
 package org.intellij.lang.xslfo.run.editor;
 
-import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
-import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
-import com.intellij.openapi.vfs.VirtualFile;
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -18,6 +14,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.util.List;
 import org.intellij.lang.xslfo.run.OutputFormat;
 import org.intellij.lang.xslfo.run.SettingsFileMode;
 import org.intellij.lang.xslfo.run.XslFoRunConfiguration;
@@ -236,8 +233,11 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
     myXsltFile.setText(
         settings.getXsltFilePointer() != null ? settings.getXsltFilePointer().getPresentableUrl() :
             null);
-    myXmlInputFile.getChildComponent().setSelectedItem(settings.getXmlInputFilePointer() != null
-        ? settings.getXmlInputFilePointer().getPresentableUrl() : null);
+    List<String> xmlInputs = settings.getXmlInputFilesPointers().stream()
+        .map(pointer -> pointer != null ? pointer.getPresentableUrl() : null)
+        .filter(path -> path != null && !path.isBlank())
+        .toList();
+    myXmlInputFile.setXmlInputFiles(xmlInputs);
     if (myOutputFile != null) {
       myOutputFile.setText(settings.outputFile());
     }
@@ -320,16 +320,6 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
       }
     }
 
-    FileChooserDescriptor xmlDescriptor = myXmlInputFile.getDescriptor();
-
-    final VirtualFile xmlInputFile = s.findXmlInputFile();
-    if (xmlInputFile != null) {
-      final Module contextModule = ProjectRootManager.getInstance(s.getProject()).getFileIndex()
-          .getModuleForFile(xmlInputFile);
-      if (contextModule != null) {
-        xmlDescriptor.putUserData(LangDataKeys.MODULE_CONTEXT, contextModule);
-      }
-    }
     updateComponentsState();
   }
 
@@ -343,12 +333,9 @@ public class XslFoRunConfigurationEditor extends SettingsEditor<XslFoRunConfigur
       s.setXsltFile(myXsltFile.getText());
       settings = s.getSettings();
     }
-    if (myXmlInputFile.getXmlInputFile() == null || myXmlInputFile.getXmlInputFile().isEmpty()) {
-      settings = settings.withXmlInputFile(null);
-    } else {
-      s.setXmlInputFile(myXmlInputFile.getXmlInputFile());
-      settings = s.getSettings();
-    }
+    List<String> xmlInputFiles = myXmlInputFile.getXmlInputFiles();
+    s.setXmlInputFiles(xmlInputFiles);
+    settings = s.getSettings();
     settings = settings.withOutputFile(myOutputFile.getText())
         .withOpenOutputFile(myOpenOutputFile.isSelected())
         .withUseTemporaryFiles(myUseTemporaryFiles.isSelected()).withExecutionMode(

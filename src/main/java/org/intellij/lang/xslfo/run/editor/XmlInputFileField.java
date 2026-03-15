@@ -2,78 +2,66 @@ package org.intellij.lang.xslfo.run.editor;
 
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.ComponentWithBrowseButton;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.ui.DocumentAdapter;
-import com.intellij.util.ArrayUtil;
+import com.intellij.ui.ToolbarDecorator;
+import com.intellij.ui.components.JBLabel;
+import com.intellij.ui.table.JBTable;
 import org.intellij.lang.xpath.xslt.associations.FileAssociationsManager;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.ComboBoxModel;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JComboBox;
+import javax.swing.JPanel;
+import javax.swing.ListSelectionModel;
 import javax.swing.event.DocumentEvent;
+import javax.swing.table.DefaultTableModel;
+import java.awt.BorderLayout;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 /**
- * UI component for selecting an XML input file with dropdown and browse functionality.
- * Supports auto-detecting associated XML files based on XSLT file selection.
+ * UI component for managing multiple XML input files.
  */
-public class XmlInputFileField extends ComponentWithBrowseButton<JComboBox<String>> {
+public class XmlInputFileField extends JPanel {
 
   private final FileChooserDescriptor myXmlDescriptor;
   private final ProjectDefaultAccessor myProjectDefaultAccessor;
-
   private final XsltFileField myXsltFileField;
+  private final DefaultTableModel tableModel;
+  private final JBTable table;
 
-  /**
-   * Creates an XML input file field component.
-   *
-   * @param project the current IntelliJ project
-   * @param xsltFileField the associated XSLT file field (used to determine associated XML files)
-   *
-   * <p>Note: Decision to inject XsltFileField as a dependency is questionable, but currently
-   * Xml field depends on Xsl field by design.
-   */
-  public XmlInputFileField(final Project project,
-                           XsltFileField xsltFileField) {
-    super(new JComboBox<>(), null);
-    this.getChildComponent().setEditable(true);
-
+  public XmlInputFileField(final Project project, XsltFileField xsltFileField) {
+    super(new BorderLayout(0, 4));
     myXsltFileField = xsltFileField;
     myProjectDefaultAccessor = new ProjectDefaultAccessor(project);
-    myXmlDescriptor = FileChooserDescriptorFactory.createSingleFileDescriptor(XmlFileType.INSTANCE);
 
-    // Use non-deprecated direct FileChooser invocation instead of deprecated addBrowseFolderListener/BrowseFolderActionListener
-    this.addActionListener(e -> {
-      // Determine initial selection directory
-      Object item = getChildComponent().getEditor().getItem();
-      String initialText = item != null ? item.toString() : "";
-      if (initialText.isEmpty()) {
-        initialText = myProjectDefaultAccessor.getText(myXsltFileField.getChildComponent());
+    myXmlDescriptor = new FileChooserDescriptor(true, false, false, false, false, true);
+    myXmlDescriptor.withFileFilter(file -> XmlFileType.INSTANCE.equals(file.getFileType()));
+
+    tableModel = new DefaultTableModel(new Object[]{"XML input files"}, 0) {
+      @Override
+      public boolean isCellEditable(int row, int column) {
+        return false;
       }
-      VirtualFile initial = null;
-      if (initialText != null && !initialText.isEmpty()) {
-        initial = VirtualFileManager.getInstance()
-            .findFileByUrl(VfsUtil.pathToUrl(initialText.replace(File.separatorChar, '/')));
-        if (initial != null && !initial.isDirectory()) {
-          initial = initial.getParent();
-        }
-      }
-      com.intellij.openapi.fileChooser.FileChooser.chooseFile(myXmlDescriptor, project, initial,
-          file -> {
-            if (file != null) {
-              getChildComponent().getEditor()
-                  .setItem(file.getPath().replace('/', File.separatorChar));
-            }
-          });
-    });
+    };
+    table = new JBTable(tableModel);
+    table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+    table.setTableHeader(null);
+
+    ToolbarDecorator decorator = ToolbarDecorator.createDecorator(table)
+        .setAddAction(button -> chooseAndAddFiles(project))
+        .setRemoveAction(button -> removeSelectedFiles())
+        .disableUpDownActions();
+    JBLabel label = new JBLabel("XML input files");
+    label.setLabelFor(table);
+    add(label, BorderLayout.NORTH);
+    add(decorator.createPanel(), BorderLayout.CENTER);
 
     myXsltFileField.getTextField().getDocument().addDocumentListener(new DocumentAdapter() {
       final PsiManager psiManager = PsiManager.getInstance(project);
@@ -81,50 +69,108 @@ public class XmlInputFileField extends ComponentWithBrowseButton<JComboBox<Strin
       final FileAssociationsManager associationsManager =
           FileAssociationsManager.getInstance(project);
 
+      @Override
       protected void textChanged(@NotNull DocumentEvent e) {
+        if (tableModel.getRowCount() > 0) {
+          return;
+        }
         final String text = myXsltFileField.getText();
-        final JComboBox<String> comboBox = XmlInputFileField.this.getChildComponent();
-        final Object oldXml = getXmlInputFile();
-        if (!text.isEmpty()) {
-          final ComboBoxModel<String> model = comboBox.getModel();
-
-          boolean found = false;
-          for (int i = 0; i < model.getSize(); i++) {
-            if (oldXml.equals(model.getElementAt(i))) {
-              found = true;
-            }
+        if (text.isBlank()) {
+          return;
+        }
+        final VirtualFile virtualFile =
+            fileMgr.findFileByUrl(VfsUtil.pathToUrl(text.replace(File.separatorChar, '/')));
+        if (virtualFile == null) {
+          return;
+        }
+        final PsiFile psiFile = psiManager.findFile(virtualFile);
+        if (psiFile == null) {
+          return;
+        }
+        final PsiFile[] files = associationsManager.getAssociationsFor(psiFile);
+        for (PsiFile file : files) {
+          VirtualFile f = file.getVirtualFile();
+          if (f != null) {
+            addXmlInputFile(f.getPath().replace('/', File.separatorChar));
           }
-          final VirtualFile virtualFile =
-              fileMgr.findFileByUrl(VfsUtil.pathToUrl(text.replace(File.separatorChar, '/')));
-          final PsiFile psiFile;
-          if (virtualFile != null && (psiFile = psiManager.findFile(virtualFile)) != null) {
-            final PsiFile[] files = associationsManager.getAssociationsFor(psiFile);
-
-            final String[] associations = new String[files.length];
-            for (int i = 0; i < files.length; i++) {
-              final VirtualFile f = files[i].getVirtualFile();
-              assert f != null;
-              associations[i] = f.getPath().replace('/', File.separatorChar);
-            }
-            comboBox.setModel(new DefaultComboBoxModel<>(associations));
-          }
-          if (!found) {
-            comboBox.getEditor().setItem(oldXml);
-          }
-          comboBox.setSelectedItem(oldXml);
-        } else {
-          comboBox.setModel(new DefaultComboBoxModel<>(ArrayUtil.EMPTY_STRING_ARRAY));
-          comboBox.getEditor().setItem(oldXml);
         }
       }
     });
   }
 
+  private void chooseAndAddFiles(Project project) {
+    String initialText = myProjectDefaultAccessor.getText(myXsltFileField.getChildComponent());
+    VirtualFile initial = null;
+    if (initialText != null && !initialText.isEmpty()) {
+      initial = VirtualFileManager.getInstance()
+          .findFileByUrl(VfsUtil.pathToUrl(initialText.replace(File.separatorChar, '/')));
+      if (initial != null && !initial.isDirectory()) {
+        initial = initial.getParent();
+      }
+    }
+
+    com.intellij.openapi.fileChooser.FileChooser.chooseFiles(myXmlDescriptor, project, initial,
+        files -> {
+          if (files == null || files.isEmpty()) {
+            return;
+          }
+          LinkedHashSet<String> merged = new LinkedHashSet<>(getXmlInputFiles());
+          for (VirtualFile file : files) {
+            if (file != null) {
+              merged.add(file.getPath().replace('/', File.separatorChar));
+            }
+          }
+          setXmlInputFiles(new ArrayList<>(merged));
+        });
+  }
+
+  private void removeSelectedFiles() {
+    int[] selectedRows = table.getSelectedRows();
+    if (selectedRows.length == 0) {
+      return;
+    }
+    for (int i = selectedRows.length - 1; i >= 0; i--) {
+      int modelRow = table.convertRowIndexToModel(selectedRows[i]);
+      tableModel.removeRow(modelRow);
+    }
+  }
+
   public String getXmlInputFile() {
-    final JComboBox<String> comboBox = this.getChildComponent();
-    final Object currentItem = comboBox.getEditor().getItem();
-    String s = (String) (currentItem != null ? currentItem : comboBox.getSelectedItem());
-    return s != null ? s : "";
+    List<String> files = getXmlInputFiles();
+    return files.isEmpty() ? "" : files.get(0);
+  }
+
+  public List<String> getXmlInputFiles() {
+    List<String> result = new ArrayList<>();
+    for (int i = 0; i < tableModel.getRowCount(); i++) {
+      Object rowValue = tableModel.getValueAt(i, 0);
+      String value = rowValue instanceof String ? (String) rowValue : null;
+      if (value != null && !value.isBlank()) {
+        result.add(value);
+      }
+    }
+    return result;
+  }
+
+  public void setXmlInputFiles(List<String> files) {
+    tableModel.setRowCount(0);
+    LinkedHashSet<String> unique = new LinkedHashSet<>(files);
+    for (String file : unique) {
+      addXmlInputFile(file);
+    }
+  }
+
+  private void addXmlInputFile(String path) {
+    if (path == null || path.isBlank()) {
+      return;
+    }
+    for (int i = 0; i < tableModel.getRowCount(); i++) {
+      Object rowValue = tableModel.getValueAt(i, 0);
+      if (path.equals(rowValue)) {
+        return;
+      }
+    }
+    tableModel.addRow(new Object[]{path});
   }
 
   public FileChooserDescriptor getDescriptor() {
