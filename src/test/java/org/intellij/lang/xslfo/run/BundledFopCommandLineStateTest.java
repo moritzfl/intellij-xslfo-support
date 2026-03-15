@@ -47,6 +47,28 @@ public class BundledFopCommandLineStateTest {
   }
 
   @Test(timeout = 15000)
+  public void bundledRunner_doesNotMutateGlobalJaxpSystemProperties() throws Exception {
+    XslFoRunConfiguration config = createConfigurationForSimpleInputs();
+
+    String originalSaxFactory = System.getProperty("javax.xml.parsers.SAXParserFactory");
+    String originalDocumentFactory = System.getProperty("javax.xml.parsers.DocumentBuilderFactory");
+    String originalSaxDriver = System.getProperty("org.xml.sax.driver");
+    String expectedSaxFactory = "org.apache.xerces.jaxp.SAXParserFactoryImpl".equals(originalSaxFactory)
+        ? null : originalSaxFactory;
+    String expectedDocumentFactory =
+        "org.apache.xerces.jaxp.DocumentBuilderFactoryImpl".equals(originalDocumentFactory)
+            ? null : originalDocumentFactory;
+    try {
+      BundledFopRunner.runFop(config, null);
+    } finally {
+      assertEquals(expectedSaxFactory, System.getProperty("javax.xml.parsers.SAXParserFactory"));
+      assertEquals(expectedDocumentFactory,
+          System.getProperty("javax.xml.parsers.DocumentBuilderFactory"));
+      assertEquals(originalSaxDriver, System.getProperty("org.xml.sax.driver"));
+    }
+  }
+
+  @Test(timeout = 15000)
   public void bundledPreviewDiagnostics_nullImageUriDoesNotThrowInternalResolverNpe() throws Exception {
     Project project = XslFoRunExecutorTestHelper.createTestProject();
     XslFoRunConfiguration config = new XslFoRunConfiguration(project,

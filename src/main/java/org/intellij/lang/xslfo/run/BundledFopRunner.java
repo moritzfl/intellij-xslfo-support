@@ -34,6 +34,14 @@ import java.util.List;
  */
 final class BundledFopRunner {
 
+  private static final String SAX_PARSER_FACTORY_KEY = "javax.xml.parsers.SAXParserFactory";
+  private static final String DOCUMENT_BUILDER_FACTORY_KEY =
+      "javax.xml.parsers.DocumentBuilderFactory";
+  private static final String LEGACY_XERCES_SAX_FACTORY =
+      "org.apache.xerces.jaxp.SAXParserFactoryImpl";
+  private static final String LEGACY_XERCES_DOCUMENT_FACTORY =
+      "org.apache.xerces.jaxp.DocumentBuilderFactoryImpl";
+
   private BundledFopRunner() {
   }
 
@@ -45,21 +53,7 @@ final class BundledFopRunner {
   static List<File> runFop(XslFoRunConfiguration config, File temporaryFile,
                            RenderDiagnosticsSink diagnosticsSink)
       throws IOException, SAXException, TransformerException {
-    // Ensure JAXP factories resolve to public Xerces implementations to avoid
-    // java.xml internal access restrictions in the IntelliJ plugin classloader.
-    try {
-      // Clear any stale overrides first
-      System.clearProperty("javax.xml.parsers.SAXParserFactory");
-      System.clearProperty("javax.xml.parsers.DocumentBuilderFactory");
-      System.clearProperty("org.xml.sax.driver");
-      // Set to public Xerces implementations (provided by xercesImpl dependency)
-      System.setProperty("javax.xml.parsers.SAXParserFactory",
-          "org.apache.xerces.jaxp.SAXParserFactoryImpl");
-      System.setProperty("javax.xml.parsers.DocumentBuilderFactory",
-          "org.apache.xerces.jaxp.DocumentBuilderFactoryImpl");
-    } catch (SecurityException ignored) {
-      // If properties cannot be set, proceed; FOP/Batik may still use defaults.
-    }
+    clearLegacyJaxpOverrides(diagnosticsSink);
 
     List<String> xmlPaths = config.getSettings().getXmlInputFilesPointers().stream()
         .map(pointer -> pointer != null ? pointer.getPresentableUrl() : null)
@@ -160,6 +154,26 @@ final class BundledFopRunner {
         throw exception;
       }
     };
+  }
+
+  private static void clearLegacyJaxpOverrides(RenderDiagnosticsSink diagnosticsSink) {
+    clearPropertyIfMatches(SAX_PARSER_FACTORY_KEY, LEGACY_XERCES_SAX_FACTORY, diagnosticsSink);
+    clearPropertyIfMatches(DOCUMENT_BUILDER_FACTORY_KEY, LEGACY_XERCES_DOCUMENT_FACTORY,
+        diagnosticsSink);
+  }
+
+  private static void clearPropertyIfMatches(String key, String legacyValue,
+                                             RenderDiagnosticsSink diagnosticsSink) {
+    try {
+      String currentValue = System.getProperty(key);
+      if (legacyValue.equals(currentValue)) {
+        System.clearProperty(key);
+      }
+    } catch (SecurityException securityException) {
+      if (diagnosticsSink != null) {
+        diagnosticsSink.warning("Could not clear legacy XML parser setting: " + key);
+      }
+    }
   }
 
   private static EventListener createDiagnosticsEventListener(RenderDiagnosticsSink sink) {
