@@ -1,4 +1,3 @@
-<!DOCTYPE idea-plugin PUBLIC "Plugin/DTD" "https://plugins.jetbrains.com/plugin.dtd">
 <idea-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xsi:noNamespaceSchemaLocation="https://plugins.jetbrains.com/plugin.xsd">
     <id>XslFoSupport</id>
