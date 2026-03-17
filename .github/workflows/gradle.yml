@@ -16,14 +16,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        include:
-          - ideaVersion: LATEST-EAP-SNAPSHOT
-            experimental: true
-          - ideaVersion: 2025.3
-            experimental: false
+        ideaVersion: [ '2025.3' ]
 
     steps:
     - uses: actions/checkout@v2
