@@ -1,4 +1,4 @@
-# XSL-FO Toolkit for IntelliJ IDEA [![Build Status](https://github.com/dmitry-cherkas/intellij-xslfo-support/actions/workflows/gradle.yml/badge.svg)](https://github.com/dmitry-cherkas/intellij-xslfo-support/actions/workflows/gradle.yml)
+# XSL-FO Toolkit for IntelliJ IDEA [![Build Status](https://github.com/moritzfl/intellij-xslfo-support/actions/workflows/gradle.yml/badge.svg)](https://github.com/moritzfl/intellij-xslfo-support/actions/workflows/gradle.yml)
 
 This plugin provides run configuration that allows execution of XSL-FO transformations with [Apache FOP](https://xmlgraphics.apache.org/fop/) (Formatting Objects Processor).
 
