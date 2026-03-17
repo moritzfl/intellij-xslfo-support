@@ -22,9 +22,7 @@ jobs:
         include:
           - ideaVersion: LATEST-EAP-SNAPSHOT
             experimental: true
-          - ideaVersion: 2021.3
-            experimental: false
-          - ideaVersion: 2021.2
+          - ideaVersion: 2025.3
             experimental: false
 
     steps:
