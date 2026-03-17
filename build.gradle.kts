@@ -1,7 +1,7 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
-    id("org.jetbrains.intellij.platform") version "2.10.1"
+    id("org.jetbrains.intellij.platform") version "2.13.1"
     id("java")
     idea
     checkstyle
@@ -58,11 +58,11 @@ dependencies {
     implementation("org.apache.xmlgraphics:fop:$fopVersion")
     implementation("org.apache.pdfbox:pdfbox:$pdfboxVersion")
     implementation("xerces:xercesImpl:2.12.2")
-    implementation("org.kordamp.ikonli:ikonli-swing:12.3.1")
-    implementation("org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1")
+    implementation("org.kordamp.ikonli:ikonli-swing:12.4.0")
+    implementation("org.kordamp.ikonli:ikonli-fontawesome5-pack:12.4.0")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.mockito:mockito-core:5.23.0")
 }
 
 sourceSets {
