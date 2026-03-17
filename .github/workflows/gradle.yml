@@ -28,7 +28,7 @@ jobs:
         java-version: '21'
         distribution: 'zulu'
     - name: Build with Gradle
-      uses: gradle/gradle-build-action@v2.0.1
+      uses: gradle/gradle-build-action@v2.12.0
       env:
         ORG_GRADLE_PROJECT_ideaVersion: ${{ matrix.ideaVersion }}
       with:
