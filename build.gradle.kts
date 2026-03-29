@@ -90,6 +90,6 @@ tasks.named("processResources") {
 version = "${version}"
 
 checkstyle {
-    toolVersion = "13.3.0"
+    toolVersion = "13.4.0"
     configFile = file("$rootDir/config/checkstyle/google_checks.xml")
 }
