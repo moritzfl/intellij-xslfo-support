@@ -1,7 +1,7 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
-    id("org.jetbrains.intellij.platform") version "2.13.1"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
     id("java")
     idea
     checkstyle
@@ -90,6 +90,6 @@ tasks.named("processResources") {
 version = "${version}"
 
 checkstyle {
-    toolVersion = "13.3.0"
+    toolVersion = "13.4.2"
     configFile = file("$rootDir/config/checkstyle/google_checks.xml")
 }
