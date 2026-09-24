@@ -1,7 +1,7 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
-    id("org.jetbrains.intellij.platform") version "2.13.1"
+    id("org.jetbrains.intellij.platform") version "2.19.0"
     id("java")
     idea
     checkstyle
@@ -48,7 +48,7 @@ tasks.register<Copy>("initConfig") {
 }
 
 val fopVersion = "2.11"
-val pdfboxVersion = "3.0.7"
+val pdfboxVersion = "3.0.8"
 
 dependencies {
     intellijPlatform {
@@ -62,7 +62,7 @@ dependencies {
     implementation("org.kordamp.ikonli:ikonli-fontawesome5-pack:12.4.0")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-core:5.24.0")
 }
 
 sourceSets {
@@ -90,6 +90,6 @@ tasks.named("processResources") {
 version = "${version}"
 
 checkstyle {
-    toolVersion = "13.3.0"
+    toolVersion = "13.11.0"
     configFile = file("$rootDir/config/checkstyle/google_checks.xml")
 }
